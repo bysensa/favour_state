@@ -4,10 +4,10 @@ import 'runtime.dart';
 import 'store_state.dart';
 
 abstract class Store<T extends StoreState<T>> extends StateProvider<T> {
-  final StoreRuntime runtime;
+  final StoreRuntime _runtime;
   StateController<T> _state;
 
-  Store(this.runtime) {
+  Store({StoreRuntime runtime}) : _runtime = runtime ?? StoreRuntime() {
     _state = runtime.state(initStore());
   }
 
@@ -23,6 +23,6 @@ abstract class Store<T extends StoreState<T>> extends StateProvider<T> {
     SS store,
     StoreAction<SS, S> computation,
   ) async {
-    await runtime.run<SS, S>(store, computation);
+    await _runtime.run<SS, S>(store, computation);
   }
 }

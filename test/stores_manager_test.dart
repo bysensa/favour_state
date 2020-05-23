@@ -54,7 +54,7 @@ class StoresManagerTest with StoresProvider, StoresRegistry, StoresManager {
 
 class TestStore extends Store<TestState> {
   final Test2Store dep;
-  TestStore(StoreRuntime runtime, {this.dep}) : super(runtime);
+  TestStore(StoreRuntime runtime, {this.dep}) : super(runtime: runtime);
 
   @override
   TestState initStore() => TestState();
@@ -62,13 +62,13 @@ class TestStore extends Store<TestState> {
 
 class TestState extends StoreState<TestState> {
   @override
-  Copyable copyWith() {
+  TestState copyWith() {
     throw UnimplementedError();
   }
 }
 
 class Test2Store extends Store<Test2State> {
-  Test2Store(StoreRuntime runtime) : super(runtime);
+  Test2Store(StoreRuntime runtime) : super(runtime: runtime);
 
   @override
   Test2State initStore() => Test2State();
@@ -76,7 +76,7 @@ class Test2Store extends Store<Test2State> {
 
 class Test2State extends StoreState<Test2State> {
   @override
-  Copyable copyWith() {
+  Test2State copyWith() {
     throw UnimplementedError();
   }
 }
