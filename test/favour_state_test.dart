@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:favour_state/favour_state.dart';
-import 'package:favour_state/src/runtime/service_provider.dart';
-import 'package:favour_state/src/runtime/state_controller.dart';
 import 'package:favour_state/src/runtime/store_runtime.dart';
 import 'package:favour_state/src/runtime/value_reaction.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,7 +11,7 @@ void main() {
 //    expect(store.state.counter, 0);
 //    //await store.inc();
 //    expect(store.state.counter, 50);
-    await store.doubly();
+    await store.doubly(3);
   });
 }
 
@@ -34,23 +32,25 @@ class SomeStore extends Store<SomeState> {
 
   SomeStore(StoreRuntime runtime)
       : counter = runtime.value((s) => s.counter, topics: [#counter]),
-        super(runtime);
+        super(runtime: runtime);
 
-  Future<void> doubly() async {
-    await run(this, doublyAction);
+  Future<void> doubly(int multiplier) async {
+    await run(this, DoublyAction(multiplier));
   }
 
   @override
   SomeState initStore() => SomeState();
 }
 
-Future<void> doublyAction(
-    SomeStore store, StateController<SomeState> controller,
-    [ServiceProvider services]) async {
-  final s = controller;
-  s
-    ..merge({#counter: s.value.counter * 2})
-    ..merge({#counter: s.value.counter * 2})
-    ..merge({#counter: s.value.counter * 2})
-    ..merge({#counter: s.value.counter * 2});
+class DoublyAction extends StoreAction<SomeStore, SomeState> {
+  DoublyAction(
+    int multiplier,
+  ) : super((store, controller, [services]) {
+          final s = controller;
+          s
+            ..merge({#counter: s.value.counter * multiplier})
+            ..merge({#counter: s.value.counter * multiplier})
+            ..merge({#counter: s.value.counter * multiplier})
+            ..merge({#counter: s.value.counter * multiplier});
+        });
 }

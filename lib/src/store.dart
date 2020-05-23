@@ -21,8 +21,8 @@ abstract class Store<T extends StoreState<T>> extends StateProvider<T> {
 
   Future<void> run<SS extends Store<S>, S extends StoreState<S>>(
     SS store,
-    StoreAction<SS, S> computation,
+    StoreAction<SS, S> action,
   ) async {
-    await _runtime.run<SS, S>(store, computation);
+    await _runtime.run<SS, S>(store, action);
   }
 }

@@ -7,6 +7,7 @@ export 'runtime/service_provider.dart';
 export 'runtime/state_controller.dart';
 export 'runtime/state_provider.dart';
 export 'runtime/states_manager.dart';
+export 'runtime/store_action.dart';
 export 'runtime/store_runtime.dart';
 export 'runtime/store_runtime.dart';
 export 'runtime/stores_manager.dart';

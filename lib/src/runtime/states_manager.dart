@@ -5,13 +5,7 @@ import 'reactions_manager.dart';
 import 'service_provider.dart';
 import 'state_controller.dart';
 import 'state_provider.dart';
-
-typedef StoreAction<T extends StateProvider<S>, S extends Copyable>
-    = FutureOr<void> Function(
-  T,
-  StateController<S>, [
-  ServiceProvider services,
-]);
+import 'store_action.dart';
 
 mixin StatesManager on ReactionsManager {
   final Map<Type, StateController<Copyable>> _states = {};
