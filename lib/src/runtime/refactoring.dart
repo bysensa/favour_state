@@ -8,9 +8,59 @@ class StoreRuntime {
   ServiceProvider _services;
 
   final Map<Type, Map<Symbol, HashedObserverList<Reaction>>> _reactions = {};
-  ValueReaction<S, T> valueReaction<S extends Copyable, T>() {}
-  EffectReaction<S> effectReaction<S extends Copyable>() {}
-  void notifyReactions() {}
+
+  ValueReaction<S, T> valueReaction<S extends Copyable, T>(
+    T Function(S) reducer, {
+    Set<Symbol> topics,
+  }) {
+    final _topics = topics ?? {#self};
+    final reaction = ValueReaction<S, T>(reducer: reducer, topics: _topics);
+    _registerReaction<S>(reaction, _topics);
+    return reaction;
+  }
+
+  EffectReaction<S> effectReaction<S extends Copyable>(
+    void Function(S) effect, {
+    Set<Symbol> topics,
+  }) {
+    final _topics = topics ?? {#self};
+    final reaction = EffectReaction<S>(effect: effect, topics: _topics);
+    _registerReaction<S>(reaction, _topics);
+    return reaction;
+  }
+
+  void _registerReaction<S extends Copyable>(
+    Reaction reaction,
+    Set<Symbol> topics,
+  ) {
+    if (!_reactions.containsKey(S)) {
+      _reactions[S] = {};
+    }
+    final reactionsForType = _reactions[S];
+
+    void registerForTopic(Symbol topic) {
+      if (!reactionsForType.containsKey(topic)) {
+        reactionsForType[topic] = HashedObserverList();
+      }
+      reactionsForType[topic].add(reaction);
+    }
+
+    topics.forEach(registerForTopic);
+  }
+
+  void notifyReactions<S extends Copyable>(S state, Set<Symbol> topics) {
+    if (!_reactions.containsKey(S)) {
+      return;
+    }
+
+    final reactionsForType = _reactions[S];
+
+    void notifyReaction(Reaction reaction) => reaction._notify(state);
+    for (final topic in topics) {
+      reactionsForType[topic]?.forEach((notifyReaction));
+    }
+  }
+
   void removeReaction() {}
   void removeAllReactions() {}
 
@@ -19,7 +69,7 @@ class StoreRuntime {
     if (_states.containsKey(S)) {
       throw StateError('StateController for type $S already registered');
     }
-    final controller = StateController<S>(state);
+    final controller = StateController<S>(state, notifyReactions);
     _states[S] = controller;
     return controller;
   }
@@ -50,14 +100,17 @@ class AppState {
     _stores[SS] = store;
   }
 
-  void registerDerivedStore<SS extends StoreInitializer>(
+  SS registerDerivedStore<SS extends StoreInitializer>(
     SS Function(S Function<S extends StoreInitializer>()) factory,
   ) {
     if (_stores.containsKey(SS)) {
       throw StateError('Store of type $SS already registered');
     }
-    final derivedStore = factory(store)..runtime = _runtime;
+    final derivedStore = factory(store);
+    // ignore: cascade_invocations
+    derivedStore.runtime = _runtime;
     _stores[SS] = derivedStore;
+    return derivedStore;
   }
 
   SS store<SS extends StoreInitializer>() {
@@ -74,22 +127,46 @@ abstract class StoreInitializer {
 }
 
 abstract class Reaction<S extends Copyable> {
-  void update(S value);
+  void _notify(S value);
 }
 
-class ValueReaction<S extends Copyable, T> extends Reaction<S> {
-  T Function(S) reducer;
+class ValueReaction<S extends Copyable, T> extends ChangeNotifier
+    implements Reaction<S>, ValueListenable<T> {
+  final T Function(S) reducer;
+  final Set<Symbol> topics;
   T _value;
+
+  ValueReaction({
+    @required this.reducer,
+    @required this.topics,
+  })  : assert(reducer != null, 'reducer is null'),
+        assert(topics != null, 'topics is null');
+
   @override
-  void update(S value) {
-    _value = reducer(value);
+  T get value => _value;
+
+  @override
+  void _notify(S value) {
+    final newValue = reducer(value);
+    if (newValue != _value) {
+      _value = newValue;
+      notifyListeners();
+    }
   }
 }
 
 class EffectReaction<S extends Copyable> extends Reaction<S> {
-  void Function(S) effect;
+  final void Function(S) effect;
+  final Set<Symbol> topics;
+
+  EffectReaction({
+    @required this.effect,
+    @required this.topics,
+  })  : assert(effect != null, 'reducer is null'),
+        assert(topics != null, 'topics is null');
+
   @override
-  void update(S value) {
+  void _notify(S value) {
     effect(value);
   }
 }
@@ -118,34 +195,53 @@ abstract class StateProvider<S extends StoreState<S>> {
 class StateController<S extends StoreState<S>> extends StateMutator
     implements StateProvider<S> {
   S _state;
+  final void Function<S extends Copyable>(S, Set<Symbol>) _notifier;
 
-  StateController(S state)
-      : assert(state != null, 'state is null'),
-        _state = state;
+  StateController(
+    S state,
+    void Function<S extends Copyable>(S, Set<Symbol>) notifier,
+  )   : assert(state != null, 'state is null'),
+        assert(notifier != null, 'notifier is null'),
+        _state = state,
+        _notifier = notifier;
 
   @override
   void operator []=(Symbol topic, Object value) {
-    // TODO: implement []=
+    _merge({topic: value});
   }
 
   @override
+  // ignore: avoid_setters_without_getters
   set changes(Map<Symbol, Object> changes) {
-    // TODO: implement changes
+    _merge(changes);
   }
 
   @override
   void merge(Map<Symbol, Object> changes) {
-    // TODO: implement merge
+    _merge(changes);
   }
 
   @override
   void set(Symbol topic, Object value) {
-    // TODO: implement set
+    _merge({topic: value});
   }
 
   @override
-  // TODO: implement state
-  S get state => throw UnimplementedError();
+  S get state => _state;
+
+  void _merge(Map<Symbol, Object> changes) {
+    final dynamic newState = Function.apply(
+      _state.copyWith,
+      null,
+      changes,
+    );
+    if (newState is S) {
+      _state = newState;
+      _notifier<S>(newState, {#self, ...changes.keys});
+      return;
+    }
+    throw StateError('state method "copyWith" return instance of unknown type');
+  }
 }
 
 abstract class BaseStore<S extends StoreState<S>>
@@ -162,6 +258,7 @@ abstract class BaseStore<S extends StoreState<S>>
     if (_runtime != null) {
       throw StateError('StoreRuntime already setup');
     }
+    _runtime = runtime;
     _init();
   }
 
@@ -173,8 +270,17 @@ abstract class BaseStore<S extends StoreState<S>>
   S initState();
   void initReactions();
 
-  ValueReaction<S, T> valueReaction<T>() => _runtime.valueReaction<S, T>();
-  EffectReaction<S> effectReaction() => _runtime.effectReaction<S>();
+  ValueReaction<S, T> valueReaction<T>(
+    T Function(S) reducer, {
+    Set<Symbol> topics,
+  }) =>
+      _runtime.valueReaction<S, T>(reducer, topics: topics);
+
+  EffectReaction<SS> effectReaction<SS extends StoreState<SS>>(
+    void Function(SS) effect, {
+    Set<Symbol> topics,
+  }) =>
+      _runtime.effectReaction<SS>(effect, topics: topics);
 
   Future<void> run<SS extends BaseStore<S>>(StoreAction<SS, S> action) async {
     await _runtime.run(this, action);
