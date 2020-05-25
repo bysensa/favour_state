@@ -1,8 +1,22 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
 
 import 'service_provider.dart';
+
+typedef ReactionReducer<S, T> = T Function(S);
+
+typedef ReactionEffect<S> = void Function(S);
+
+typedef ReactionsNotifier = void Function<S extends Copyable>(S, Set<Symbol>);
+
+typedef DerivedStoreFactory<SS extends StoreInitializer> = SS Function(
+  S Function<S extends StoreInitializer>(),
+);
+
+typedef StoreActionEffect<T extends BaseStore<S>, S extends StoreState<S>>
+    = FutureOr<void> Function(T, StateMutator, [ServiceProvider services]);
 
 class StoreRuntime {
   ServiceProvider _services;
@@ -10,7 +24,7 @@ class StoreRuntime {
   final Map<Type, Map<Symbol, HashedObserverList<Reaction>>> _reactions = {};
 
   ValueReaction<S, T> valueReaction<S extends Copyable, T>(
-    T Function(S) reducer, {
+    ReactionReducer<S, T> reducer, {
     Set<Symbol> topics,
   }) {
     final _topics = topics ?? {#self};
@@ -20,7 +34,7 @@ class StoreRuntime {
   }
 
   EffectReaction<S> effectReaction<S extends Copyable>(
-    void Function(S) effect, {
+    ReactionEffect<S> effect, {
     Set<Symbol> topics,
   }) {
     final _topics = topics ?? {#self};
@@ -77,10 +91,13 @@ class StoreRuntime {
   FutureOr<void> run<SS extends BaseStore<S>, S extends StoreState<S>>(
     SS store,
     StoreAction<SS, S> action,
-  ) {
+  ) async {
     final stateType = store.state.runtimeType;
     final mutator = _states[stateType];
-    action(store, mutator, _services);
+
+    Timeline.startSync('${action.runtimeType}');
+    await action(store, mutator, _services);
+    Timeline.finishSync();
   }
 }
 
@@ -101,7 +118,7 @@ class AppState {
   }
 
   SS registerDerivedStore<SS extends StoreInitializer>(
-    SS Function(S Function<S extends StoreInitializer>()) factory,
+    DerivedStoreFactory<SS> factory,
   ) {
     if (_stores.containsKey(SS)) {
       throw StateError('Store of type $SS already registered');
@@ -132,7 +149,7 @@ abstract class Reaction<S extends Copyable> {
 
 class ValueReaction<S extends Copyable, T> extends ChangeNotifier
     implements Reaction<S>, ValueListenable<T> {
-  final T Function(S) reducer;
+  final ReactionReducer<S, T> reducer;
   final Set<Symbol> topics;
   T _value;
 
@@ -156,7 +173,7 @@ class ValueReaction<S extends Copyable, T> extends ChangeNotifier
 }
 
 class EffectReaction<S extends Copyable> extends Reaction<S> {
-  final void Function(S) effect;
+  final ReactionEffect<S> effect;
   final Set<Symbol> topics;
 
   EffectReaction({
@@ -195,7 +212,7 @@ abstract class StateProvider<S extends StoreState<S>> {
 class StateController<S extends StoreState<S>> extends StateMutator
     implements StateProvider<S> {
   S _state;
-  final void Function<S extends Copyable>(S, Set<Symbol>) _notifier;
+  final ReactionsNotifier _notifier;
 
   StateController(
     S state,
@@ -230,14 +247,18 @@ class StateController<S extends StoreState<S>> extends StateMutator
   S get state => _state;
 
   void _merge(Map<Symbol, Object> changes) {
+    Timeline.startSync('Mutate ${S}');
     final dynamic newState = Function.apply(
       _state.copyWith,
       null,
       changes,
     );
+    Timeline.finishSync();
     if (newState is S) {
       _state = newState;
+      Timeline.startSync('Notify $S changed');
       _notifier<S>(newState, {#self, ...changes.keys});
+      Timeline.finishSync();
       return;
     }
     throw StateError('state method "copyWith" return instance of unknown type');
@@ -271,13 +292,13 @@ abstract class BaseStore<S extends StoreState<S>>
   void initReactions();
 
   ValueReaction<S, T> valueReaction<T>(
-    T Function(S) reducer, {
+    ReactionReducer<S, T> reducer, {
     Set<Symbol> topics,
   }) =>
       _runtime.valueReaction<S, T>(reducer, topics: topics);
 
   EffectReaction<SS> effectReaction<SS extends StoreState<SS>>(
-    void Function(SS) effect, {
+    ReactionEffect<SS> effect, {
     Set<Symbol> topics,
   }) =>
       _runtime.effectReaction<SS>(effect, topics: topics);
@@ -286,9 +307,6 @@ abstract class BaseStore<S extends StoreState<S>>
     await _runtime.run(this, action);
   }
 }
-
-typedef StoreActionEffect<T extends BaseStore<S>, S extends StoreState<S>>
-    = FutureOr<void> Function(T, StateMutator, [ServiceProvider services]);
 
 class StoreAction<T extends BaseStore<S>, S extends StoreState<S>> {
   final StoreActionEffect<T, S> effect;
