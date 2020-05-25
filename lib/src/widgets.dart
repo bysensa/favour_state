@@ -2,20 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
-import 'app_state.dart';
-import 'runtime.dart';
+import 'core.dart';
 
 class AppStateProvider extends StatefulWidget {
-  final StoresRegistration registration;
+  final AppStateBootstrap bootstrap;
   final ServiceProvider serviceProvider;
   final Widget child;
 
   AppStateProvider({
-    @required this.registration,
+    @required this.bootstrap,
     @required this.child,
     this.serviceProvider,
     Key key,
-  })  : assert(registration != null, 'registration is null'),
+  })  : assert(bootstrap != null, 'registration is null'),
         assert(child != null, 'child is null'),
         super(key: key);
 
@@ -30,14 +29,13 @@ class _AppStateProviderState extends State<AppStateProvider> {
   void initState() {
     super.initState();
     _appState = AppState(
-      registration: widget.registration,
+      bootstrap: widget.bootstrap,
       serviceProvider: widget.serviceProvider,
-    )..init();
+    );
   }
 
   @override
   void dispose() {
-    _appState.dispose();
     super.dispose();
   }
 
@@ -58,28 +56,26 @@ class AppStateScope extends InheritedWidget {
   @override
   bool updateShouldNotify(InheritedWidget oldWidget) => false;
 
-  static StoresProvider of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppStateScope>().appState;
+  static SS of<SS extends Store>(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<AppStateScope>()
+      .appState
+      .store();
 }
 
-class StoreMemoizer<S extends StateProvider<Copyable>> {
+class StoreMemoizer<SS extends Store> {
   final BuildContext context;
-  final _completer = Completer<S>();
+  final _completer = Completer<SS>();
 
   StoreMemoizer(this.context) : assert(context != null, 'context is null');
 
-  Future<S> get future {
+  Future<SS> get future {
     if (!hasStore) {
       _completer.complete(Future.sync(_resolveStore));
     }
     return _completer.future;
   }
 
-  S _resolveStore() => AppStateScope.of(context).store<S>();
+  SS _resolveStore() => AppStateScope.of<SS>(context);
 
   bool get hasStore => _completer.isCompleted;
-}
-
-mixin StoreResolver<S extends StateProvider<Copyable>> {
-  StoreMemoizer<S> get store;
 }

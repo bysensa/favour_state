@@ -1,3 +1,0 @@
-mixin Copyable {
-  Copyable copyWith();
-}

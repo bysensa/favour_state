@@ -3,7 +3,11 @@ import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
 
-import 'service_provider.dart';
+typedef ServiceProvider = T Function<T>({
+  String instanceName,
+  dynamic param1,
+  dynamic param2,
+});
 
 typedef ReactionReducer<S, T> = T Function(S);
 
@@ -18,8 +22,12 @@ typedef DerivedStoreFactory<SS extends StoreInitializer> = SS Function(
 typedef StoreActionEffect<T extends BaseStore<S>, S extends StoreState<S>>
     = FutureOr<void> Function(T, StateMutator, [ServiceProvider services]);
 
+typedef AppStateBootstrap = void Function(AppState);
+
 class StoreRuntime {
-  ServiceProvider _services;
+  final ServiceProvider services;
+
+  StoreRuntime({this.services});
 
   final Map<Type, Map<Symbol, HashedObserverList<Reaction>>> _reactions = {};
 
@@ -96,18 +104,23 @@ class StoreRuntime {
     final mutator = _states[stateType];
 
     Timeline.startSync('${action.runtimeType}');
-    await action(store, mutator, _services);
+    await action(store, mutator, services);
     Timeline.finishSync();
   }
 }
 
 class AppState {
+  final ServiceProvider serviceProvider;
+  final AppStateBootstrap bootstrap;
   final StoreRuntime _runtime;
   final Map<Type, StoreInitializer> _stores = {};
 
-  AppState({@required StoreRuntime runtime})
-      : assert(runtime != null, 'runtime is null'),
-        _runtime = runtime;
+  AppState({this.bootstrap, this.serviceProvider})
+      : _runtime = StoreRuntime(services: serviceProvider) {
+    if (bootstrap != null) {
+      bootstrap(this);
+    }
+  }
 
   void registerStore<SS extends StoreInitializer>(SS store) {
     if (_stores.containsKey(SS)) {
@@ -265,8 +278,11 @@ class StateController<S extends StoreState<S>> extends StateMutator
   }
 }
 
+// Marker interface
+abstract class Store {}
+
 abstract class BaseStore<S extends StoreState<S>>
-    implements StoreInitializer, StateProvider<S> {
+    implements StoreInitializer, StateProvider<S>, Store {
   StoreRuntime _runtime;
   StateProvider<S> _stateProvider;
 

@@ -1,4 +1,4 @@
-import 'package:favour_state/src/runtime/refactoring.dart';
+import 'package:favour_state/src/core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -7,7 +7,7 @@ void main() {
   LoadingStore loadingStore;
 
   setUp(() {
-    appState = AppState(runtime: StoreRuntime());
+    appState = AppState();
     loadingStore = LoadingStore();
     appState.registerStore(loadingStore);
     counterStore = appState.registerDerivedStore(
