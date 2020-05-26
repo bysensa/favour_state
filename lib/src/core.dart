@@ -3,6 +3,7 @@ import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
 
+// Type definitions
 typedef ServiceProvider = T Function<T>({
   String instanceName,
   dynamic param1,
@@ -24,6 +25,9 @@ typedef StoreActionEffect<T extends BaseStore<S>, S extends StoreState<S>>
 
 typedef AppStateBootstrap = void Function(AppState);
 
+///
+///
+/// [StoreRuntime] class
 class StoreRuntime {
   final ServiceProvider services;
 
@@ -115,6 +119,9 @@ class StoreRuntime {
   }
 }
 
+///
+///
+/// [AppState]
 class AppState {
   final ServiceProvider serviceProvider;
   final AppStateBootstrap bootstrap;
@@ -157,15 +164,24 @@ class AppState {
   }
 }
 
+///
+///
+/// [StoreInitializer] class
 abstract class StoreInitializer {
   // ignore: avoid_setters_without_getters
   set runtime(StoreRuntime runtime);
 }
 
+///
+///
+/// [Reaction class]
 abstract class Reaction<S extends Copyable> {
   void _notify(S value);
 }
 
+///
+///
+/// [ValueReaction] class
 class ValueReaction<S extends Copyable, T> extends ChangeNotifier
     implements Reaction<S>, ValueListenable<T> {
   final ReactionReducer<S, T> reducer;
@@ -191,6 +207,9 @@ class ValueReaction<S extends Copyable, T> extends ChangeNotifier
   }
 }
 
+///
+///
+/// [EffectReaction]
 class EffectReaction<S extends Copyable> extends Reaction<S> {
   final ReactionEffect<S> effect;
   final Set<Symbol> topics;
@@ -207,10 +226,16 @@ class EffectReaction<S extends Copyable> extends Reaction<S> {
   }
 }
 
+///
+///
+/// [Copyable] class
 abstract class Copyable {
   Copyable copyWith();
 }
 
+///
+///
+/// [StateMutator] class
 abstract class StateMutator {
   void merge(Map<Symbol, Object> changes);
   void set(Symbol topic, Object value);
@@ -219,15 +244,24 @@ abstract class StateMutator {
   set changes(Map<Symbol, Object> newChanges);
 }
 
+///
+///
+/// [StoreState] class
 abstract class StoreState<S extends StoreState<S>> extends Copyable {
   @override
   S copyWith();
 }
 
+///
+///
+/// [StateProvider] class
 abstract class StateProvider<S extends StoreState<S>> {
   S get state;
 }
 
+///
+///
+/// [StateController] class
 class StateController<S extends StoreState<S>> extends StateMutator
     implements StateProvider<S> {
   S _state;
@@ -284,9 +318,12 @@ class StateController<S extends StoreState<S>> extends StateMutator
   }
 }
 
-// Marker interface
+/// [Store] class used as marker interface
 abstract class Store {}
 
+///
+///
+/// [BaseStore] class
 abstract class BaseStore<S extends StoreState<S>>
     implements StoreInitializer, StateProvider<S>, Store {
   StoreRuntime _runtime;
@@ -330,6 +367,9 @@ abstract class BaseStore<S extends StoreState<S>>
   }
 }
 
+///
+///
+/// [StoreAction] class
 class StoreAction<T extends BaseStore<S>, S extends StoreState<S>> {
   final StoreActionEffect<T, S> effect;
 
