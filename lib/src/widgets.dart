@@ -56,13 +56,13 @@ class AppStateScope extends InheritedWidget {
   @override
   bool updateShouldNotify(InheritedWidget oldWidget) => false;
 
-  static SS of<SS extends Store>(BuildContext context) => context
+  static SS store<SS extends StoreInitializer>(BuildContext context) => context
       .dependOnInheritedWidgetOfExactType<AppStateScope>()
       .appState
-      .store();
+      .store<SS>();
 }
 
-class StoreMemoizer<SS extends Store> {
+class StoreMemoizer<SS extends StoreInitializer> {
   final BuildContext context;
   final _completer = Completer<SS>();
 
@@ -75,7 +75,7 @@ class StoreMemoizer<SS extends Store> {
     return _completer.future;
   }
 
-  SS _resolveStore() => AppStateScope.of<SS>(context);
+  SS _resolveStore() => AppStateScope.store<SS>(context);
 
   bool get hasStore => _completer.isCompleted;
 }

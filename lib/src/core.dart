@@ -60,6 +60,12 @@ class StoreRuntime {
     }
     final reactionsForType = _reactions[S];
 
+    if (!_states.containsKey(S)) {
+      throw StateError('State of type $S not registered');
+    }
+    final state = _states.cast<Type, StateProvider>()[S].state;
+    reaction._notify(state);
+
     void registerForTopic(Symbol topic) {
       if (!reactionsForType.containsKey(topic)) {
         reactionsForType[topic] = HashedObserverList();
