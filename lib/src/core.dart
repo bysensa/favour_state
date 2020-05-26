@@ -68,7 +68,7 @@ class StoreRuntime {
       throw StateError('State of type $S not registered');
     }
     final state = _states.cast<Type, StateProvider>()[S].state;
-    reaction._notify(state);
+    reaction.notify(state);
 
     void registerForTopic(Symbol topic) {
       if (!reactionsForType.containsKey(topic)) {
@@ -87,7 +87,7 @@ class StoreRuntime {
 
     final reactionsForType = _reactions[S];
 
-    void notifyReaction(Reaction reaction) => reaction._notify(state);
+    void notifyReaction(Reaction reaction) => reaction.notify(state);
     for (final topic in topics) {
       reactionsForType[topic]?.forEach((notifyReaction));
     }
@@ -176,7 +176,7 @@ abstract class StoreInitializer {
 ///
 /// [Reaction class]
 abstract class Reaction<S extends Copyable> {
-  void _notify(S value);
+  void notify(S value);
 }
 
 ///
@@ -198,7 +198,8 @@ class ValueReaction<S extends Copyable, T> extends ChangeNotifier
   T get value => _value;
 
   @override
-  void _notify(S value) {
+  @visibleForTesting
+  void notify(S value) {
     final newValue = reducer(value);
     if (newValue != _value) {
       _value = newValue;
@@ -221,7 +222,7 @@ class EffectReaction<S extends Copyable> extends Reaction<S> {
         assert(topics != null, 'topics is null');
 
   @override
-  void _notify(S value) {
+  void notify(S value) {
     effect(value);
   }
 }
