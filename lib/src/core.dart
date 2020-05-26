@@ -33,14 +33,18 @@ class StoreRuntime {
 
   StoreRuntime({this.services});
 
-  final Map<Type, Map<Symbol, HashedObserverList<Reaction>>> _reactions = {};
+  @visibleForTesting
+  final Map<Type, Map<Symbol, HashedObserverList<Reaction>>> reactions = {};
 
   ValueReaction<S, T> valueReaction<S extends Copyable, T>(
     ReactionReducer<S, T> reducer, {
     Set<Symbol> topics,
   }) {
-    final _topics = topics ?? {#self};
-    final reaction = ValueReaction<S, T>(reducer: reducer, topics: _topics);
+    final _topics = {#self, ...(topics ?? <Symbol>{})};
+    final reaction = ValueReaction<S, T>(
+      reducer: reducer,
+      topics: _topics,
+    );
     _registerReaction<S>(reaction, _topics);
     return reaction;
   }
@@ -49,8 +53,11 @@ class StoreRuntime {
     ReactionEffect<S> effect, {
     Set<Symbol> topics,
   }) {
-    final _topics = topics ?? {#self};
-    final reaction = EffectReaction<S>(effect: effect, topics: _topics);
+    final _topics = {#self, ...(topics ?? <Symbol>{})};
+    final reaction = EffectReaction<S>(
+      effect: effect,
+      topics: _topics,
+    );
     _registerReaction<S>(reaction, _topics);
     return reaction;
   }
@@ -59,15 +66,15 @@ class StoreRuntime {
     Reaction reaction,
     Set<Symbol> topics,
   ) {
-    if (!_reactions.containsKey(S)) {
-      _reactions[S] = {};
+    if (!reactions.containsKey(S)) {
+      reactions[S] = {};
     }
-    final reactionsForType = _reactions[S];
+    final reactionsForType = reactions[S];
 
-    if (!_states.containsKey(S)) {
+    if (!states.containsKey(S)) {
       throw StateError('State of type $S not registered');
     }
-    final state = _states.cast<Type, StateProvider>()[S].state;
+    final state = states.cast<Type, StateProvider>()[S].state;
     reaction.notify(state);
 
     void registerForTopic(Symbol topic) {
@@ -81,11 +88,11 @@ class StoreRuntime {
   }
 
   void notifyReactions<S extends Copyable>(S state, Set<Symbol> topics) {
-    if (!_reactions.containsKey(S)) {
+    if (!reactions.containsKey(S)) {
       return;
     }
 
-    final reactionsForType = _reactions[S];
+    final reactionsForType = reactions[S];
 
     void notifyReaction(Reaction reaction) => reaction.notify(state);
     for (final topic in topics) {
@@ -96,13 +103,15 @@ class StoreRuntime {
   void removeReaction() {}
   void removeAllReactions() {}
 
-  final Map<Type, StateMutator> _states = {};
+  @visibleForTesting
+  final Map<Type, StateMutator> states = {};
+
   StateProvider<S> state<S extends StoreState<S>>(S state) {
-    if (_states.containsKey(S)) {
+    if (states.containsKey(S)) {
       throw StateError('StateController for type $S already registered');
     }
     final controller = StateController<S>(state, notifyReactions);
-    _states[S] = controller;
+    states[S] = controller;
     return controller;
   }
 
@@ -111,7 +120,7 @@ class StoreRuntime {
     StoreAction<SS, S> action,
   ) async {
     final stateType = store.state.runtimeType;
-    final mutator = _states[stateType];
+    final mutator = states[stateType];
 
     Timeline.startSync('${action.runtimeType}');
     await action(store, mutator, services);
