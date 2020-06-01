@@ -27,8 +27,15 @@ typedef AppStateBootstrap = void Function(AppState);
 
 ///
 ///
+/// [Disposable] class
+abstract class Disposable {
+  void dispose();
+}
+
+///
+///
 /// [StoreRuntime] class
-class StoreRuntime {
+class StoreRuntime implements Disposable {
   final ServiceProvider services;
 
   StoreRuntime({this.services});
@@ -126,16 +133,33 @@ class StoreRuntime {
     await action(store, mutator, services);
     Timeline.finishSync();
   }
+
+  @override
+  void dispose() {
+    reactions.forEach(
+      (_, topics) => topics.forEach(
+        (_, observers) {
+          // ignore: avoid_function_literals_in_foreach_calls
+          observers.forEach((reaction) {
+            reaction.dispose();
+          });
+        },
+      ),
+    );
+    // ignore: cascade_invocations
+    reactions.clear();
+    states.clear();
+  }
 }
 
 ///
 ///
 /// [AppState]
-class AppState {
+class AppState implements Disposable {
   final ServiceProvider serviceProvider;
   final AppStateBootstrap bootstrap;
   final StoreRuntime _runtime;
-  final Map<Type, StoreInitializer> _stores = {};
+  final Map<Type, Store> _stores = {};
 
   AppState({this.bootstrap, this.serviceProvider})
       : _runtime = StoreRuntime(services: serviceProvider) {
@@ -144,7 +168,7 @@ class AppState {
     }
   }
 
-  void registerStore<SS extends StoreInitializer>(SS store) {
+  void registerStore<SS extends Store>(SS store) {
     if (_stores.containsKey(SS)) {
       throw StateError('Store of type $SS already registered');
     }
@@ -152,7 +176,7 @@ class AppState {
     _stores[SS] = store;
   }
 
-  SS registerDerivedStore<SS extends StoreInitializer>(
+  SS registerDerivedStore<SS extends Store>(
     DerivedStoreFactory<SS> factory,
   ) {
     if (_stores.containsKey(SS)) {
@@ -171,7 +195,20 @@ class AppState {
     }
     return _stores.cast<Type, SS>()[SS];
   }
+
+  @override
+  void dispose() {
+    _stores.forEach((_, store) {
+      store.dispose();
+    });
+    // ignore: cascade_invocations
+    _stores.clear();
+    _runtime.dispose();
+  }
 }
+
+/// [Store] class used as marker interface
+abstract class Store implements StoreInitializer, Disposable {}
 
 ///
 ///
@@ -184,7 +221,7 @@ abstract class StoreInitializer {
 ///
 ///
 /// [Reaction class]
-abstract class Reaction<S extends Copyable> {
+abstract class Reaction<S extends Copyable> implements Disposable {
   void notify(S value);
 }
 
@@ -234,6 +271,9 @@ class EffectReaction<S extends Copyable> extends Reaction<S> {
   void notify(S value) {
     effect(value);
   }
+
+  @override
+  void dispose() {}
 }
 
 ///
@@ -328,14 +368,11 @@ class StateController<S extends StoreState<S>> extends StateMutator
   }
 }
 
-/// [Store] class used as marker interface
-abstract class Store {}
-
 ///
 ///
 /// [BaseStore] class
 abstract class BaseStore<S extends StoreState<S>>
-    implements StoreInitializer, StateProvider<S>, Store {
+    implements StateProvider<S>, Store {
   StoreRuntime _runtime;
   StateProvider<S> _stateProvider;
 
@@ -374,6 +411,13 @@ abstract class BaseStore<S extends StoreState<S>>
 
   Future<void> run<SS extends BaseStore<S>>(StoreAction<SS, S> action) async {
     await _runtime.run(this, action);
+  }
+
+  @override
+  @mustCallSuper
+  void dispose() {
+    _runtime = null;
+    _stateProvider = null;
   }
 }
 
