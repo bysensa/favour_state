@@ -84,14 +84,14 @@ class CounterState extends StoreState<CounterState> {
       );
 }
 
-class MultiplyAction extends StoreAction<CounterStore, CounterState> {
+class MultiplyAction extends StoreAction<CounterStore> {
   MultiplyAction(int multiplier)
       : super((store, mutator, [services]) {
           mutator[#counter] = store.state.counter * multiplier;
         });
 }
 
-class SetCounterAction extends StoreAction<CounterStore, CounterState> {
+class SetCounterAction extends StoreAction<CounterStore> {
   SetCounterAction(int value)
       : super((store, mutator, [services]) {
           mutator.changes = {#counter: value};
@@ -120,7 +120,7 @@ class LoadingState extends StoreState<LoadingState> {
       LoadingState(loading: loading ?? this.loading);
 }
 
-class ToggleAction extends StoreAction<LoadingStore, LoadingState> {
+class ToggleAction extends StoreAction<LoadingStore> {
   ToggleAction()
       : super((store, mutator, [services]) {
           mutator[#loading] = !store.state.loading;

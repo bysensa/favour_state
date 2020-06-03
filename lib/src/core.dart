@@ -20,8 +20,8 @@ typedef DerivedStoreFactory<SS extends StoreInitializer> = SS Function(
   S Function<S extends StoreInitializer>(),
 );
 
-typedef StoreActionEffect<T extends BaseStore<S>, S extends StoreState<S>>
-    = FutureOr<void> Function(T, StateMutator, [ServiceProvider services]);
+typedef StoreActionEffect<T extends Store> = FutureOr<void>
+    Function(T, StateMutator, [ServiceProvider services]);
 
 typedef AppStateBootstrap = void Function(AppState);
 
@@ -122,11 +122,11 @@ class StoreRuntime implements Disposable {
     return controller;
   }
 
-  FutureOr<void> run<SS extends BaseStore<S>, S extends StoreState<S>>(
+  FutureOr<void> run<SS extends Store>(
     SS store,
-    StoreAction<SS, S> action,
+    StoreAction<SS> action,
   ) async {
-    final stateType = store.state.runtimeType;
+    final stateType = store._stateType;
     final mutator = states[stateType];
 
     Timeline.startSync('${action.runtimeType}');
@@ -208,7 +208,9 @@ class AppState implements Disposable {
 }
 
 /// [Store] class used as marker interface
-abstract class Store implements StoreInitializer, Disposable {}
+abstract class Store implements StoreInitializer, Disposable {
+  Type get _stateType;
+}
 
 ///
 ///
@@ -377,6 +379,9 @@ abstract class BaseStore<S extends StoreState<S>>
   StateProvider<S> _stateProvider;
 
   @override
+  Type get _stateType => S;
+
+  @override
   S get state => _stateProvider.state;
 
   @override
@@ -409,7 +414,7 @@ abstract class BaseStore<S extends StoreState<S>>
   }) =>
       _runtime.effectReaction<SS>(effect, topics: topics);
 
-  Future<void> run<SS extends BaseStore<S>>(StoreAction<SS, S> action) async {
+  Future<void> run<SS extends Store>(StoreAction<SS> action) async {
     await _runtime.run(this, action);
   }
 
@@ -424,8 +429,8 @@ abstract class BaseStore<S extends StoreState<S>>
 ///
 ///
 /// [StoreAction] class
-class StoreAction<T extends BaseStore<S>, S extends StoreState<S>> {
-  final StoreActionEffect<T, S> effect;
+class StoreAction<T extends Store> {
+  final StoreActionEffect<T> effect;
 
   StoreAction(this.effect) : assert(effect != null, 'effect is null');
 
