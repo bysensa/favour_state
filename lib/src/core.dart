@@ -445,3 +445,9 @@ class StoreAction<T extends Store> {
 
 StoreAction<SA> action<SA extends Store>(StoreActionEffect<SA> closure) =>
     StoreAction<SA>(closure);
+
+SS localStore<SS extends Store>(SS store, {ServiceProvider serviceProvider}) {
+  final _runtime = StoreRuntime(services: serviceProvider);
+  store.runtime = _runtime;
+  return store;
+}
