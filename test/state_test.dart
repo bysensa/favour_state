@@ -36,6 +36,7 @@ void main() {
     expect(counterReactionCall, 3);
 
     await loadingStore.toggle();
+    await loadingStore.disable();
   });
 }
 
@@ -107,6 +108,12 @@ class LoadingStore extends BaseStore<LoadingState> {
 
   Future<void> toggle() async {
     await run(ToggleAction());
+  }
+
+  Future<void> disable() async {
+    await run(action<LoadingStore>((store, mutator, [services]) {
+      mutator[#loading] = false;
+    }));
   }
 }
 

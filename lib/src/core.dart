@@ -442,3 +442,6 @@ class StoreAction<T extends Store> {
     effect(store, mutator, services);
   }
 }
+
+StoreAction<SA> action<SA extends Store>(StoreActionEffect<SA> closure) =>
+    StoreAction<SA>(closure);
