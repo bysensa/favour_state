@@ -1,8 +1,7 @@
 name: favour_state
 description: State management for flutter
 version: 0.0.1
-author:
-homepage:
+homepage: https://github.com/devsensa/favour_state
 
 environment:
   sdk: ">=2.7.0 <3.0.0"
@@ -10,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  quiver: 2.1.3
+  quiver: ^2.1.3
 
 
 dev_dependencies:
