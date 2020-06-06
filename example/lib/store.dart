@@ -31,7 +31,7 @@ class ExampleStore extends BaseStore<ExampleState> {
 
   // you can initialize your state
   @override
-  ExampleState initState() => const ExampleState(counter: 5);
+  ExampleState initState() => const ExampleState(counter: 1);
 
   Future<void> multiply(int multiplier) async {
     await run(MultiplyCounter(multiplier));
