@@ -1,6 +1,6 @@
-# favour_state
+# favour\_state
 
-State management solution for flutter inspired by cerebraljs and property_change_notifier
+State management solution for flutter inspired by cerebraljs and property\_change\_notifier
 
 ## Introduction
 
@@ -10,7 +10,7 @@ State management solution for flutter inspired by cerebraljs and property_change
 
 ## State
 
-—————
+---- 
 
 ## Store
 
@@ -20,7 +20,7 @@ State management solution for flutter inspired by cerebraljs and property_change
 
 ### Internals
 
-————
+---- 
 
 ## Actions
 
@@ -30,7 +30,7 @@ State management solution for flutter inspired by cerebraljs and property_change
 
 ### Internals
 
-————
+---- 
 
 ## Reactions
 
@@ -40,7 +40,7 @@ State management solution for flutter inspired by cerebraljs and property_change
 
 ### Internals
 
-————
+---- 
 
 ## AppState
 
@@ -52,7 +52,7 @@ State management solution for flutter inspired by cerebraljs and property_change
 
 ### Internals
 
-————
+---- 
 
 ## Widgets
 
@@ -62,3 +62,8 @@ State management solution for flutter inspired by cerebraljs and property_change
 
 ### Internals
 
+---- 
+
+## Internals
+
+### StoreRuntime
