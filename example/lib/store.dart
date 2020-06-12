@@ -14,15 +14,15 @@ class ExampleStore extends BaseStore<ExampleState> {
   @override
   void initReactions() {
     // under the hood value reaction implement ValueListenable
-    enabled = valueReaction((s) => s.enabled, topics: {#enabled});
-    controllableCounter = valueReaction(
+    enabled = valueOf((s) => s.enabled, topics: {#enabled});
+    controllableCounter = valueOf(
       (s) => s.controllableCounter,
       topics: {#enabled, #counter},
     );
-    self = valueReaction((s) => s);
+    self = valueOf((s) => s);
 
     // in closure of effect reaction you can use anything from class scope
-    onCounterChange = effectReaction(
+    onCounterChange = effectOf(
       // ignore: avoid_print
       (s) => print('counter changed'),
       topics: {#counter},

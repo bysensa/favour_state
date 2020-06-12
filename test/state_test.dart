@@ -56,10 +56,9 @@ class CounterStore extends BaseStore<CounterState> {
 
   @override
   void initReactions() {
-    counter = valueReaction((state) => state.counter, topics: {#counter});
-    self = effectReaction((state) => checkIsCounterState, topics: {#self});
-    loadingReaction =
-        effectReaction((state) => checkIsLoadingState, topics: {#self});
+    counter = valueOf((state) => state.counter, topics: {#counter});
+    self = effectOf((state) => checkIsCounterState, topics: {#self});
+    loadingReaction = effectOf((state) => checkIsLoadingState, topics: {#self});
   }
 
   @override

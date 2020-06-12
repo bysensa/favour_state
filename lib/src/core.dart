@@ -402,13 +402,13 @@ abstract class BaseStore<S extends StoreState<S>>
   S initState();
   void initReactions();
 
-  ValueReaction<S, T> valueReaction<T>(
-    ReactionReducer<S, T> reducer, {
+  ValueReaction<SS, T> valueOf<SS extends StoreState<SS>, T>(
+    ReactionReducer<SS, T> reducer, {
     Set<Symbol> topics,
   }) =>
-      _runtime.valueReaction<S, T>(reducer, topics: topics);
+      _runtime.valueReaction<SS, T>(reducer, topics: topics);
 
-  EffectReaction<SS> effectReaction<SS extends StoreState<SS>>(
+  EffectReaction<SS> effectOf<SS extends StoreState<SS>>(
     ReactionEffect<SS> effect, {
     Set<Symbol> topics,
   }) =>
