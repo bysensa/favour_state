@@ -110,7 +110,7 @@ class LoadingStore extends BaseStore<LoadingState> {
   }
 
   Future<void> disable() async {
-    await run(action<LoadingStore>((store, mutator, [services]) {
+    await run(action(this, (store, mutator, [services]) {
       mutator[#loading] = false;
     }));
   }

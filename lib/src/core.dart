@@ -443,7 +443,10 @@ class StoreAction<T extends Store> {
   }
 }
 
-StoreAction<SA> action<SA extends Store>(StoreActionEffect<SA> closure) =>
+StoreAction<SA> action<SA extends Store>(
+  SA store,
+  StoreActionEffect<SA> closure,
+) =>
     StoreAction<SA>(closure);
 
 SS localStore<SS extends Store>(SS store, {ServiceProvider serviceProvider}) {
