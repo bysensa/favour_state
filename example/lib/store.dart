@@ -38,7 +38,7 @@ class ExampleStore extends BaseStore<ExampleState> {
   }
 
   Future<void> toggle() async {
-    await run(action(this, (store, mutator, [services]) {
+    await run(action<ExampleStore>((store, mutator, [services]) {
       // #name - should be equal to state copyWith named params
       // For example if copyWith is 'void copyWith({int counter, bool enabled})'
       // you can use #counter and #enabled to mutate state
