@@ -79,3 +79,23 @@ class StoreMemoizer<SS extends StoreInitializer> {
 
   bool get hasStore => _completer.isCompleted;
 }
+
+typedef StoreConsumerBuilder<T extends Store> = Widget Function(
+  BuildContext,
+  T,
+);
+
+class AppStateConsumer<T extends Store> extends StatelessWidget {
+  final StoreConsumerBuilder<T> builder;
+
+  const AppStateConsumer({
+    Key key,
+    this.builder,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) => builder(
+        context,
+        AppStateScope.store(context),
+      );
+}
