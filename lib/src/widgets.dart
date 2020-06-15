@@ -96,6 +96,6 @@ class AppStateConsumer<T extends Store> extends StatelessWidget {
   @override
   Widget build(BuildContext context) => builder(
         context,
-        AppStateScope.store(context),
+        AppStateScope.store<T>(context),
       );
 }
