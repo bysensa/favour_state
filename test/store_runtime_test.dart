@@ -33,7 +33,7 @@ void main() {
       (s) => s.value,
       topics: {#value},
     );
-    expect(reaction, isInstanceOf<ValueReaction<_TestState, int>>());
+    expect(reaction, isInstanceOf<Value<_TestState, int>>());
     expect(runtime.reactions.length, 1);
     expect(runtime.reactions.containsKey(_TestState), isTrue);
     expect(runtime.reactions[_TestState].containsKey(#self), isTrue);
@@ -50,7 +50,7 @@ void main() {
     );
 
     expect(effectCall, 1);
-    expect(reaction, isInstanceOf<EffectReaction<_TestState>>());
+    expect(reaction, isInstanceOf<Effect<_TestState>>());
     expect(runtime.reactions.length, 1);
     expect(runtime.reactions.containsKey(_TestState), isTrue);
     expect(runtime.reactions[_TestState].containsKey(#self), isTrue);

@@ -48,9 +48,9 @@ void checkIsLoadingState(LoadingState state) =>
 class CounterStore extends BaseStore<CounterState> {
   final LoadingStore loadingStore;
 
-  ValueReaction<CounterState, int> counter;
-  EffectReaction<CounterState> self;
-  EffectReaction<LoadingState> loadingReaction;
+  Value<CounterState, int> counter;
+  Effect<CounterState> self;
+  Effect<LoadingState> loadingReaction;
 
   CounterStore({this.loadingStore});
 

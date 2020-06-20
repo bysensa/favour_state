@@ -43,12 +43,12 @@ class StoreRuntime implements Disposable {
   @visibleForTesting
   final Map<Type, Map<Symbol, HashedObserverList<Reaction>>> reactions = {};
 
-  ValueReaction<S, T> valueReaction<S extends Copyable, T>(
+  Value<S, T> valueReaction<S extends Copyable, T>(
     ReactionReducer<S, T> reducer, {
     Set<Symbol> topics,
   }) {
     final _topics = {#self, ...(topics ?? <Symbol>{})};
-    final reaction = ValueReaction<S, T>(
+    final reaction = Value<S, T>(
       reducer: reducer,
       topics: _topics,
     );
@@ -56,12 +56,12 @@ class StoreRuntime implements Disposable {
     return reaction;
   }
 
-  EffectReaction<S> effectReaction<S extends Copyable>(
+  Effect<S> effectReaction<S extends Copyable>(
     ReactionEffect<S> effect, {
     Set<Symbol> topics,
   }) {
     final _topics = {#self, ...(topics ?? <Symbol>{})};
-    final reaction = EffectReaction<S>(
+    final reaction = Effect<S>(
       effect: effect,
       topics: _topics,
     );
@@ -229,14 +229,14 @@ abstract class Reaction<S extends Copyable> implements Disposable {
 
 ///
 ///
-/// [ValueReaction] class
-class ValueReaction<S extends Copyable, T> extends ChangeNotifier
+/// [Value] class
+class Value<S extends Copyable, T> extends ChangeNotifier
     implements Reaction<S>, ValueListenable<T> {
   final ReactionReducer<S, T> reducer;
   final Set<Symbol> topics;
   T _value;
 
-  ValueReaction({
+  Value({
     @required this.reducer,
     @required this.topics,
   })  : assert(reducer != null, 'reducer is null'),
@@ -258,12 +258,12 @@ class ValueReaction<S extends Copyable, T> extends ChangeNotifier
 
 ///
 ///
-/// [EffectReaction]
-class EffectReaction<S extends Copyable> extends Reaction<S> {
+/// [Effect]
+class Effect<S extends Copyable> extends Reaction<S> {
   final ReactionEffect<S> effect;
   final Set<Symbol> topics;
 
-  EffectReaction({
+  Effect({
     @required this.effect,
     @required this.topics,
   })  : assert(effect != null, 'reducer is null'),
@@ -402,13 +402,13 @@ abstract class BaseStore<S extends StoreState<S>>
   S initState();
   void initReactions();
 
-  ValueReaction<SS, T> valueOf<SS extends StoreState<SS>, T>(
+  Value<SS, T> valueOf<SS extends StoreState<SS>, T>(
     ReactionReducer<SS, T> reducer, {
     Set<Symbol> topics,
   }) =>
       _runtime.valueReaction<SS, T>(reducer, topics: topics);
 
-  EffectReaction<SS> effectOf<SS extends StoreState<SS>>(
+  Effect<SS> effectOf<SS extends StoreState<SS>>(
     ReactionEffect<SS> effect, {
     Set<Symbol> topics,
   }) =>

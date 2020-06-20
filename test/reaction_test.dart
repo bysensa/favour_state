@@ -2,16 +2,16 @@ import 'package:favour_state/favour_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  ValueReaction<_TestState, int> valueReaction;
-  EffectReaction<_TestState> effectReaction;
+  Value<_TestState, int> valueReaction;
+  Effect<_TestState> effectReaction;
   int effectCall;
 
   setUp(() {
-    valueReaction = ValueReaction<_TestState, int>(
+    valueReaction = Value<_TestState, int>(
       reducer: (s) => s.value,
       topics: {},
     );
-    effectReaction = EffectReaction<_TestState>(
+    effectReaction = Effect<_TestState>(
       effect: (s) => effectCall += s.value,
       topics: {},
     );

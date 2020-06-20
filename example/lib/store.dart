@@ -4,11 +4,11 @@ import 'state.dart';
 
 class ExampleStore extends BaseStore<ExampleState> {
   // Any reaction is optional
-  ValueReaction<ExampleState, bool> enabled;
-  ValueReaction<ExampleState, int> controllableCounter;
-  ValueReaction<ExampleState, ExampleState> self;
+  Value<ExampleState, bool> enabled;
+  Value<ExampleState, int> controllableCounter;
+  Value<ExampleState, ExampleState> self;
 
-  EffectReaction<ExampleState> onCounterChange;
+  Effect<ExampleState> onCounterChange;
 
   // if you not declare reaction you can leave the method empty
   @override
