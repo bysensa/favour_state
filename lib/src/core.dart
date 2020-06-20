@@ -4,11 +4,7 @@ import 'dart:developer';
 import 'package:flutter/foundation.dart';
 
 // Type definitions
-typedef ServiceProvider = T Function<T>({
-  String instanceName,
-  dynamic param1,
-  dynamic param2,
-});
+typedef ServiceProvider = T Function<T>({String instanceName});
 
 typedef ReactionReducer<S, T> = T Function(S);
 
