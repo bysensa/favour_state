@@ -1,3 +1,4 @@
+import 'package:example/state.dart';
 import 'package:favour_state/favour_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -40,8 +41,8 @@ class ExampleApp extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ValueListenableBuilder(
-                          valueListenable: store.controllableCounter,
+                      StateListenableBuilder<ExampleState, int>(
+                          reducer: (s) => s.controllableCounter,
                           builder: (context, value, child) => Text('$value')),
                       RaisedButton(
                         onPressed: () => store.multiply(2),

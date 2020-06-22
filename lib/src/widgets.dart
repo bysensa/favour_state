@@ -60,6 +60,28 @@ class AppStateScope extends InheritedWidget {
       .dependOnInheritedWidgetOfExactType<AppStateScope>()
       .appState
       .store<SS>();
+
+  static void removeObserver<S extends StoreState<S>>(
+    BuildContext context,
+    ValueChanged<S> observer, {
+    Set<Symbol> topics,
+  }) {
+    context
+        .dependOnInheritedWidgetOfExactType<AppStateScope>()
+        .appState
+        .removeObserver<S>(observer, topics: topics);
+  }
+
+  static void addObserver<S extends StoreState<S>>(
+    BuildContext context,
+    ValueChanged<S> observer, {
+    Set<Symbol> topics,
+  }) {
+    context
+        .dependOnInheritedWidgetOfExactType<AppStateScope>()
+        .appState
+        .addObserver<S>(observer, topics: topics);
+  }
 }
 
 class StoreMemoizer<SS extends StoreInitializer> {
@@ -97,5 +119,58 @@ class AppStateConsumer<T extends Store> extends StatelessWidget {
   Widget build(BuildContext context) => builder(
         context,
         AppStateScope.store<T>(context),
+      );
+}
+
+class StateListenableBuilder<S extends StoreState<S>, T>
+    extends StatefulWidget {
+  final Reducer<S, T> reducer;
+  final Set<Symbol> topics;
+  final Widget child;
+  final ValueWidgetBuilder<T> builder;
+
+  const StateListenableBuilder({
+    @required this.reducer,
+    @required this.builder,
+    Key key,
+    this.child,
+    this.topics,
+  })  : assert(reducer != null, 'reducer is null'),
+        assert(builder != null, 'builder is null'),
+        super(key: key);
+
+  @override
+  _StateListenableBuilderState<S, T> createState() =>
+      _StateListenableBuilderState<S, T>();
+}
+
+class _StateListenableBuilderState<S extends StoreState<S>, T>
+    extends State<StateListenableBuilder<S, T>> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    AppStateScope.removeObserver<S>(context, _observer, topics: widget.topics);
+    AppStateScope.addObserver<S>(context, _observer, topics: widget.topics);
+  }
+
+  @override
+  void dispose() {
+    AppStateScope.removeObserver<S>(context, _observer, topics: widget.topics);
+    super.dispose();
+  }
+
+  void _observer(S state) {
+    setState(() {
+      value = widget.reducer(state);
+    });
+  }
+
+  T value;
+
+  @override
+  Widget build(BuildContext context) => widget.builder(
+        context,
+        value,
+        widget.child,
       );
 }

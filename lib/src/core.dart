@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 // Type definitions
 typedef ServiceProvider = T Function<T>({String instanceName});
 
-typedef ReactionReducer<S, T> = T Function(S);
+typedef Reducer<S, T> = T Function(S);
 
 typedef ReactionEffect<S> = void Function(S);
 
@@ -40,7 +40,7 @@ class StoreRuntime implements Disposable {
   final Map<Type, Map<Symbol, HashedObserverList<Reaction>>> reactions = {};
 
   Value<S, T> valueReaction<S extends Copyable, T>(
-    ReactionReducer<S, T> reducer, {
+    Reducer<S, T> reducer, {
     Set<Symbol> topics,
   }) {
     final _topics = {#self, ...(topics ?? <Symbol>{})};
@@ -144,6 +144,9 @@ class StoreRuntime implements Disposable {
     );
     // ignore: cascade_invocations
     reactions.clear();
+    states.values
+        .cast<StateController<StoreState>>()
+        .forEach((c) => c.dispose());
     states.clear();
   }
 }
@@ -192,6 +195,32 @@ class AppState implements Disposable {
     return _stores.cast<Type, SS>()[SS];
   }
 
+  void addObserver<S extends StoreState<S>>(
+    ValueChanged<S> observer, {
+    Set<Symbol> topics,
+  }) {
+    final states = _runtime.states;
+    if (!states.containsKey(S)) {
+      throw StateError('State of type $S not registered');
+    }
+    final state = states.cast<Type, StateController<S>>()[S];
+    // ignore: cascade_invocations
+    state.addObserver(observer, topics: topics);
+  }
+
+  void removeObserver<S extends StoreState<S>>(
+    ValueChanged<S> observer, {
+    Set<Symbol> topics,
+  }) {
+    final states = _runtime.states;
+    if (!states.containsKey(S)) {
+      throw StateError('State of type $S not registered');
+    }
+    final state = states.cast<Type, StateController<S>>()[S];
+    // ignore: cascade_invocations
+    state.removeObserver(observer, topics: topics);
+  }
+
   @override
   void dispose() {
     _stores.forEach((_, store) {
@@ -228,7 +257,7 @@ abstract class Reaction<S extends Copyable> implements Disposable {
 /// [Value] class
 class Value<S extends Copyable, T> extends ChangeNotifier
     implements Reaction<S>, ValueListenable<T> {
-  final ReactionReducer<S, T> reducer;
+  final Reducer<S, T> reducer;
   final Set<Symbol> topics;
   T _value;
 
@@ -311,6 +340,7 @@ abstract class StateProvider<S extends StoreState<S>> {
 ///
 /// [StateController] class
 class StateController<S extends StoreState<S>> extends StateMutator
+    with StateObserversManager<S>
     implements StateProvider<S> {
   S _state;
   final ReactionsNotifier _notifier;
@@ -357,6 +387,7 @@ class StateController<S extends StoreState<S>> extends StateMutator
     Timeline.finishSync();
     if (newState is S) {
       _state = newState;
+      notifyObservers(newState, changes.keys);
       Timeline.startSync('Notify $S changed');
       _notifier<S>(newState, {#self, ...changes.keys});
       Timeline.finishSync();
@@ -399,7 +430,7 @@ abstract class BaseStore<S extends StoreState<S>>
   void initReactions();
 
   Value<SS, T> valueOf<SS extends StoreState<SS>, T>(
-    ReactionReducer<SS, T> reducer, {
+    Reducer<SS, T> reducer, {
     Set<Symbol> topics,
   }) =>
       _runtime.valueReaction<SS, T>(reducer, topics: topics);
@@ -448,4 +479,49 @@ SS localStore<SS extends Store>(SS store, {ServiceProvider serviceProvider}) {
   final _runtime = StoreRuntime(services: serviceProvider);
   store.runtime = _runtime;
   return store;
+}
+
+mixin StateObserversManager<S extends StoreState<S>> {
+  final _observers = <Symbol, HashedObserverList<ValueChanged<S>>>{};
+
+  S get state;
+
+  void addObserver(ValueChanged<S> observer, {Set<Symbol> topics}) {
+    final _topics = {#self, ...(topics ?? <Symbol>{})};
+    for (final topic in _topics) {
+      if (!_observers.containsKey(topic)) {
+        _observers[topic] = HashedObserverList();
+      }
+      _observers[topic].add(observer);
+    }
+    observer(state);
+  }
+
+  void removeObserver(ValueChanged<S> observer, {Set<Symbol> topics}) {
+    final _topics = {#self, ...(topics ?? <Symbol>{})};
+    for (final topic in _topics) {
+      if (_observers.containsKey(topic)) {
+        _observers[topic].remove(observer);
+      }
+    }
+  }
+
+  void notifyObservers(S state, Iterable<Symbol> topics) {
+    void notify(ValueChanged<S> observer) {
+      observer(state);
+    }
+
+    if (_observers.containsKey(#self)) {
+      _observers[#self].forEach(notify);
+    }
+    for (final topic in topics) {
+      if (_observers.containsKey(topic)) {
+        _observers[topic].forEach(notify);
+      }
+    }
+  }
+
+  void dispose() {
+    _observers.clear();
+  }
 }
