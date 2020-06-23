@@ -56,6 +56,9 @@ class AppStateScope extends InheritedWidget {
   @override
   bool updateShouldNotify(InheritedWidget oldWidget) => false;
 
+  static AppState instance(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppStateScope>().appState;
+
   static SS store<SS extends StoreInitializer>(BuildContext context) => context
       .dependOnInheritedWidgetOfExactType<AppStateScope>()
       .appState
@@ -146,16 +149,26 @@ class StateListenableBuilder<S extends StoreState<S>, T>
 
 class _StateListenableBuilderState<S extends StoreState<S>, T>
     extends State<StateListenableBuilder<S, T>> {
+  AppState appState;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    AppStateScope.removeObserver<S>(context, _observer, topics: widget.topics);
-    AppStateScope.addObserver<S>(context, _observer, topics: widget.topics);
+    appState = AppStateScope.instance(context);
+    if (appState == null) {
+      return;
+    }
+    appState
+      ..removeObserver<S>(_observer, topics: widget.topics)
+      ..addObserver<S>(_observer, topics: widget.topics);
   }
 
   @override
   void dispose() {
-    AppStateScope.removeObserver<S>(context, _observer, topics: widget.topics);
+    if (appState == null) {
+      return;
+    }
+    appState.removeObserver<S>(_observer, topics: widget.topics);
     super.dispose();
   }
 
