@@ -16,8 +16,8 @@ typedef DerivedStoreFactory<SS extends StoreInitializer> = SS Function(
   S Function<S extends StoreInitializer>(),
 );
 
-typedef StoreActionEffect<T extends Store> = FutureOr<void>
-    Function(T, StateMutator, [ServiceProvider services]);
+typedef StoreActionEffect<T extends Store> = FutureOr<void> Function(
+    StoreActionContext<T> ctx);
 
 typedef AppStateBootstrap = void Function(AppState);
 
@@ -32,9 +32,9 @@ abstract class Disposable {
 ///
 /// [StoreRuntime] class
 class StoreRuntime implements Disposable {
-  final ServiceProvider services;
+  final ServiceProviderContainer services;
 
-  StoreRuntime({this.services});
+  StoreRuntime() : services = ServiceProviderContainer();
 
   @visibleForTesting
   final Map<Type, Map<Symbol, HashedObserverList<Reaction>>> reactions = {};
@@ -109,7 +109,7 @@ class StoreRuntime implements Disposable {
   @visibleForTesting
   final Map<Type, StateMutator> states = {};
 
-  StateProvider<S> state<S extends StoreState<S>>(S state) {
+  StateController<S> state<S extends StoreState<S>>(S state) {
     if (states.containsKey(S)) {
       throw StateError('StateController for type $S already registered');
     }
@@ -155,13 +155,14 @@ class StoreRuntime implements Disposable {
 ///
 /// [AppState]
 class AppState implements Disposable {
-  final ServiceProvider serviceProvider;
+  final ServiceProviderContainer services;
   final AppStateBootstrap bootstrap;
   final StoreRuntime _runtime;
   final Map<Type, Store> _stores = {};
 
-  AppState({this.bootstrap, this.serviceProvider})
-      : _runtime = StoreRuntime(services: serviceProvider) {
+  AppState({this.bootstrap, ServiceProvider serviceProvider})
+      : services = ServiceProviderContainer(services: serviceProvider),
+        _runtime = StoreRuntime() {
     if (bootstrap != null) {
       bootstrap(this);
     }
@@ -403,7 +404,7 @@ class StateController<S extends StoreState<S>> extends StateMutator
 abstract class BaseStore<S extends StoreState<S>>
     implements StateProvider<S>, Store {
   StoreRuntime _runtime;
-  StateProvider<S> _stateProvider;
+  StateController<S> _stateProvider;
 
   @override
   Type get _stateType => S;
@@ -412,6 +413,7 @@ abstract class BaseStore<S extends StoreState<S>>
   S get state => _stateProvider.state;
 
   @override
+  @visibleForTesting
   // ignore: avoid_setters_without_getters
   set runtime(StoreRuntime runtime) {
     if (_runtime != null) {
@@ -466,7 +468,7 @@ class StoreAction<T extends Store> {
     StateMutator mutator, [
     ServiceProvider services,
   ]) {
-    effect(store, mutator, services);
+    effect(StoreActionContext<T>(store, mutator, services));
   }
 }
 
@@ -475,17 +477,17 @@ StoreAction<SA> action<SA extends Store>(
 ) =>
     StoreAction<SA>(closure);
 
-SS localStore<SS extends Store>(SS store, {ServiceProvider serviceProvider}) {
-  final _runtime = StoreRuntime(services: serviceProvider);
-  store.runtime = _runtime;
-  return store;
+abstract class Observable<S extends StoreState<S>> {
+  void addObserver(ValueChanged<S> observer, {Set<Symbol> topics});
+  void removeObserver(ValueChanged<S> observer, {Set<Symbol> topics});
 }
 
-mixin StateObserversManager<S extends StoreState<S>> {
+mixin StateObserversManager<S extends StoreState<S>> implements Observable<S> {
   final _observers = <Symbol, HashedObserverList<ValueChanged<S>>>{};
 
   S get state;
 
+  @override
   void addObserver(ValueChanged<S> observer, {Set<Symbol> topics}) {
     final _topics = {#self, ...(topics ?? <Symbol>{})};
     for (final topic in _topics) {
@@ -497,6 +499,7 @@ mixin StateObserversManager<S extends StoreState<S>> {
     observer(state);
   }
 
+  @override
   void removeObserver(ValueChanged<S> observer, {Set<Symbol> topics}) {
     final _topics = {#self, ...(topics ?? <Symbol>{})};
     for (final topic in _topics) {
@@ -523,5 +526,120 @@ mixin StateObserversManager<S extends StoreState<S>> {
 
   void dispose() {
     _observers.clear();
+  }
+}
+
+@immutable
+class StoreActionContext<SS extends Store> implements StateMutator {
+  final SS _store;
+  final StateMutator _mutator;
+  final ServiceProvider _services;
+
+  StoreActionContext(this._store, this._mutator, this._services);
+
+  @override
+  void operator []=(Symbol topic, Object value) {
+    _mutator[topic] = value;
+  }
+
+  @override
+  // ignore: avoid_setters_without_getters
+  set changes(Map<Symbol, Object> changes) {
+    _mutator.changes = changes;
+  }
+
+  @override
+  void merge(Map<Symbol, Object> changes) {
+    _mutator.merge(changes);
+  }
+
+  @override
+  void set(Symbol topic, Object value) {
+    _mutator.set(topic, value);
+  }
+
+  SS call() => _store;
+
+  T $<T>({String instanceName}) => _services?.call<T>(
+        instanceName: instanceName,
+      );
+}
+
+class LocalStore<S extends StoreState<S>>
+    implements StateProvider<S>, Store, Observable<S> {
+  StoreRuntime _runtime;
+  StateController<S> _stateController;
+  final S initialState;
+
+  LocalStore(this.initialState)
+      : assert(initialState != null, 'state is null') {
+    _runtime = StoreRuntime();
+    _init();
+  }
+
+  @override
+  Type get _stateType => S;
+
+  @override
+  S get state => _stateController.state;
+
+  @override
+  @visibleForTesting
+  // ignore: avoid_setters_without_getters
+  set runtime(StoreRuntime runtime) {
+    if (_runtime != null) {
+      return;
+    }
+    _runtime = runtime;
+    _init();
+  }
+
+  void _init() {
+    _stateController = _runtime.state<S>(_initState());
+    initReactions();
+  }
+
+  S _initState() => initialState;
+  void initReactions() {}
+
+  @override
+  void addObserver(ValueChanged<S> observer, {Set<Symbol> topics}) {
+    _stateController.addObserver(observer, topics: topics);
+  }
+
+  @override
+  void removeObserver(ValueChanged<S> observer, {Set<Symbol> topics}) {
+    _stateController.removeObserver(observer, topics: topics);
+  }
+
+  Future<void> run<SS extends Store>(StoreAction<SS> action) async {
+    await _runtime.run(this, action);
+  }
+
+  @override
+  @mustCallSuper
+  void dispose() {
+    _runtime = null;
+    _stateController = null;
+  }
+}
+
+class ServiceProviderContainer {
+  final ServiceProvider _provider;
+  static ServiceProviderContainer _instance;
+  factory ServiceProviderContainer({ServiceProvider services}) =>
+      _instance ??= ServiceProviderContainer._(services);
+
+  ServiceProviderContainer._(this._provider)
+      : assert(_provider != null, 'provider is null');
+
+  T call<T>({String instanceName}) {
+    if (_provider == null) {
+      throw Exception(
+        'Can`t resolve instance of type $T from ServiceProviderContainer '
+        'because provider is null',
+      );
+    }
+    return _provider<T>(instanceName: instanceName);
   }
 }

@@ -86,15 +86,15 @@ class CounterState extends StoreState<CounterState> {
 
 class MultiplyAction extends StoreAction<CounterStore> {
   MultiplyAction(int multiplier)
-      : super((store, mutator, [services]) {
-          mutator[#counter] = store.state.counter * multiplier;
+      : super((ctx) {
+          ctx[#counter] = ctx().state.counter * multiplier;
         });
 }
 
 class SetCounterAction extends StoreAction<CounterStore> {
   SetCounterAction(int value)
-      : super((store, mutator, [services]) {
-          mutator.changes = {#counter: value};
+      : super((ctx) {
+          ctx.changes = {#counter: value};
         });
 }
 
@@ -110,8 +110,8 @@ class LoadingStore extends BaseStore<LoadingState> {
   }
 
   Future<void> disable() async {
-    await run(action<LoadingStore>((store, mutator, [services]) {
-      mutator[#loading] = false;
+    await run(action<LoadingStore>((ctx) {
+      ctx[#loading] = false;
     }));
   }
 }
@@ -128,7 +128,7 @@ class LoadingState extends StoreState<LoadingState> {
 
 class ToggleAction extends StoreAction<LoadingStore> {
   ToggleAction()
-      : super((store, mutator, [services]) {
-          mutator[#loading] = !store.state.loading;
+      : super((ctx) {
+          ctx[#loading] = !ctx().state.loading;
         });
 }

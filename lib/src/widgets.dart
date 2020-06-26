@@ -187,3 +187,65 @@ class _StateListenableBuilderState<S extends StoreState<S>, T>
         widget.child,
       );
 }
+
+class StoreListenableBuilder<S extends StoreState<S>, T>
+    extends StatefulWidget {
+  final Reducer<S, T> reducer;
+  final Set<Symbol> topics;
+  final Observable<S> store;
+  final Widget child;
+  final ValueWidgetBuilder<T> builder;
+
+  const StoreListenableBuilder({
+    @required this.reducer,
+    @required this.builder,
+    Key key,
+    this.child,
+    this.topics,
+    this.store,
+  })  : assert(reducer != null, 'reducer is null'),
+        assert(builder != null, 'builder is null'),
+        super(key: key);
+
+  @override
+  _StoreListenableBuilderState<S, T> createState() =>
+      _StoreListenableBuilderState<S, T>();
+}
+
+class _StoreListenableBuilderState<S extends StoreState<S>, T>
+    extends State<StoreListenableBuilder<S, T>> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.store == null) {
+      return;
+    }
+    widget.store
+      ..removeObserver(_observer, topics: widget.topics)
+      ..addObserver(_observer, topics: widget.topics);
+  }
+
+  @override
+  void dispose() {
+    if (widget.store == null) {
+      return;
+    }
+    widget.store.removeObserver(_observer, topics: widget.topics);
+    super.dispose();
+  }
+
+  void _observer(S state) {
+    setState(() {
+      value = widget.reducer(state);
+    });
+  }
+
+  T value;
+
+  @override
+  Widget build(BuildContext context) => widget.builder(
+        context,
+        value,
+        widget.child,
+      );
+}

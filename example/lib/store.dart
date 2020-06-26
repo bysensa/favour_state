@@ -38,11 +38,11 @@ class ExampleStore extends BaseStore<ExampleState> {
   }
 
   Future<void> toggle() async {
-    await run(action<ExampleStore>((store, mutator, [services]) {
+    await run(action<ExampleStore>((ctx) {
       // #name - should be equal to state copyWith named params
       // For example if copyWith is 'void copyWith({int counter, bool enabled})'
       // you can use #counter and #enabled to mutate state
-      mutator[#enabled] = !store.state.enabled;
+      ctx[#enabled] = !ctx().state.enabled;
     }));
   }
 }
@@ -53,13 +53,13 @@ class MultiplyCounter extends StoreAction<ExampleStore> {
   MultiplyCounter(int multiplier)
       : super(
           // closure for action should declare this params
-          (store, mutator, [services]) {
+          (ctx) {
             // You can use any of this api to mutate state
             // mutator[#counter] = 1
             // mutator.changes = {#counter: 1, #enabled: false};
             // mutator.merge({#counter: 1, #enabled: false});
             // mutator.set(#counter, 1);
-            mutator[#counter] = store.state.counter * multiplier;
+            ctx[#counter] = ctx().state.counter * multiplier;
           },
         );
 }
