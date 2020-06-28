@@ -122,36 +122,31 @@ import 'package:flutter/widgets.dart';
 //      );
 //}
 
-typedef Reducer<S, T> = T Function(S);
-
-class StoreListenableBuilder<S extends StoreState<S>, T>
-    extends StatefulWidget {
-  final Reducer<S, T> reducer;
+class StoreListenableBuilder<S extends StoreState<S>> extends StatefulWidget {
   final Set<Symbol> topics;
   final Store<S> store;
   final Widget child;
-  final ValueWidgetBuilder<T> builder;
+  final ValueWidgetBuilder<S> builder;
 
   const StoreListenableBuilder({
-    @required this.reducer,
     @required this.builder,
     @required this.store,
     Key key,
     this.child,
     this.topics,
-  })  : assert(reducer != null, 'reducer is null'),
-        assert(builder != null, 'builder is null'),
+  })  : assert(builder != null, 'builder is null'),
         assert(store != null, 'store is null'),
         super(key: key);
 
   @override
-  _StoreListenableBuilderState<S, T> createState() =>
-      _StoreListenableBuilderState<S, T>();
+  _StoreListenableBuilderState<S> createState() =>
+      _StoreListenableBuilderState<S>();
 }
 
-class _StoreListenableBuilderState<S extends StoreState<S>, T>
-    extends State<StoreListenableBuilder<S, T>> {
+class _StoreListenableBuilderState<S extends StoreState<S>>
+    extends State<StoreListenableBuilder<S>> {
   StateChangedObserver<S> _observer;
+  S value;
 
   @override
   void initState() {
@@ -176,11 +171,9 @@ class _StoreListenableBuilderState<S extends StoreState<S>, T>
 
   void listener(S state) {
     setState(() {
-      value = widget.reducer(state);
+      value = state;
     });
   }
-
-  T value;
 
   @override
   Widget build(BuildContext context) => widget.builder(
@@ -190,7 +183,7 @@ class _StoreListenableBuilderState<S extends StoreState<S>, T>
       );
 }
 
-class StoreScope<S> extends StatefulWidget {
+class StoreScope<S extends Store<StoreState>> extends StatefulWidget {
   final S store;
   final Widget child;
   final ValueWidgetBuilder<S> builder;
@@ -215,4 +208,20 @@ class _StoreScopeState extends State<StoreScope> {
         widget.store,
         widget.child,
       );
+}
+
+extension StoreListenable<S extends StoreState<S>> on Store<S> {
+  Widget listenable(
+    ValueWidgetBuilder<S> builder, {
+    Set<Symbol> topics,
+    Widget child,
+  }) {
+    assert(builder != null, 'builder is null');
+    return StoreListenableBuilder<S>(
+      store: this,
+      builder: builder,
+      topics: topics,
+      child: child,
+    );
+  }
 }
