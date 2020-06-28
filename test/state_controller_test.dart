@@ -1,70 +1,206 @@
-import 'package:favour_state/favour_state.dart';
+import 'package:favour_state/src/core.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
+
+void onTestStateChange1(TestState state) {}
+void onTestStateChange2(TestState state) {}
 
 void main() {
-  final initialState = _TestState(counter: 0, loading: false);
-  final notifier = _FakeNotifier();
-  StateController<_TestState> controller;
+  StateController<TestState> controller;
 
   setUp(() {
-    controller = StateController(initialState, notifier.notify);
+    controller = StateController(const TestState());
   });
 
-  test('Should change state with set method', () {
-    controller.set(#counter, 1);
-    expect(controller.state.counter, 1);
-    expect(controller.state.loading, false);
-
-    controller.set(#loading, true);
-    expect(controller.state.counter, 1);
-    expect(controller.state.loading, true);
+  test('should add observer on topic #self', () {
+    final observer = onTestStateChange1.observe();
+    expect(controller.observers.length, 0);
+    expect(controller.observers.containsKey(#self), isFalse);
+    controller.addObserver(observer);
+    expect(controller.observers.length, 1);
+    expect(controller.observers.containsKey(#self), isTrue);
+    expect(controller.observers[#self].length, 1);
+    expect(controller.observers[#self].contains(observer.onChange), isTrue);
   });
 
-  test('Should change state with index operator', () {
-    controller[#counter] = 1;
-    expect(controller.state.counter, 1);
-    expect(controller.state.loading, false);
+  test('should add not equal observer', () {
+    final observer = onTestStateChange1.observe();
+    final observer2 = onTestStateChange1.observe();
+    final observer3 = onTestStateChange2.observe();
+    expect(controller.observers.length, 0);
+    expect(controller.observers.containsKey(#self), isFalse);
+    controller.addObserver(observer);
+    // ignore: cascade_invocations
+    controller.addObserver(observer2);
+    // ignore: cascade_invocations
+    controller.addObserver(observer3);
+    expect(controller.observers.length, 1);
+    expect(controller.observers.containsKey(#self), isTrue);
+    expect(controller.observers[#self].length, 3);
+    expect(controller.observers[#self].contains(observer.onChange), isTrue);
+    expect(controller.observers[#self].contains(observer2.onChange), isTrue);
+    expect(controller.observers[#self].contains(observer3.onChange), isTrue);
+  });
 
+  test('should remove observer', () {
+    final observer = onTestStateChange1.observe();
+    expect(controller.observers.length, 0);
+    expect(controller.observers.containsKey(#self), isFalse);
+    controller.addObserver(observer);
+    expect(controller.observers.length, 1);
+    expect(controller.observers.containsKey(#self), isTrue);
+    expect(controller.observers[#self].length, 1);
+    expect(controller.observers[#self].contains(observer.onChange), isTrue);
+    controller.removeObserver(observer);
+    expect(controller.observers.length, 1);
+    expect(controller.observers.containsKey(#self), isTrue);
+    expect(controller.observers[#self].length, 0);
+    expect(controller.observers[#self].contains(observer.onChange), isFalse);
+  });
+  test('should remove observer when it registered 2 times', () {
+    final observer = onTestStateChange1.observe();
+    final observer2 = onTestStateChange1.observe();
+    expect(controller.observers.length, 0);
+    expect(controller.observers.containsKey(#self), isFalse);
+    controller.addObserver(observer);
+    // ignore: cascade_invocations
+    controller.addObserver(observer);
+    expect(controller.observers.length, 1);
+    expect(controller.observers.containsKey(#self), isTrue);
+    expect(controller.observers[#self].length, 1);
+    expect(controller.observers[#self].contains(observer.onChange), isTrue);
+    controller.removeObserver(observer);
+    expect(controller.observers.length, 1);
+    expect(controller.observers.containsKey(#self), isTrue);
+    expect(controller.observers[#self].length, 0);
+    expect(controller.observers[#self].contains(observer.onChange), isFalse);
+  });
+  test('should notify observer', () {
+    var observerCalCount = 0;
+    void onChange(TestState state) {
+      observerCalCount += 1;
+    }
+
+    final observer = onChange.observe();
+    controller.addObserver(observer);
+    // ignore: cascade_invocations
+    controller.notifyObservers(const TestState(), observer.topics);
+    expect(observerCalCount, 1);
+  });
+
+  test('should change state via []= operator', () {
+    var observerCalCount = 0;
+    void onChange(TestState state) {
+      observerCalCount += 1;
+    }
+
+    final observer = onChange.observe();
+    controller.addObserver(observer);
+
+    expect(controller.state.count, 0);
+    expect(controller.state.loading, false);
+    controller[#count] = 1;
+    expect(controller.state.count, 1);
+    expect(controller.state.loading, false);
+    expect(observerCalCount, 1);
     controller[#loading] = true;
-    expect(controller.state.counter, 1);
+    expect(controller.state.count, 1);
     expect(controller.state.loading, true);
+    expect(observerCalCount, 2);
   });
+  test('should change state via set method', () {
+    var observerCalCount = 0;
+    void onChange(TestState state) {
+      observerCalCount += 1;
+    }
 
-  test('Should change state with merge method', () {
-    controller.merge({#counter: 1, #loading: true});
-    expect(controller.state.counter, 1);
-    expect(controller.state.loading, true);
+    final observer = onChange.observe();
+    controller.addObserver(observer);
 
-    controller.merge({#counter: 2, #loading: false});
-    expect(controller.state.counter, 2);
+    expect(controller.state.count, 0);
     expect(controller.state.loading, false);
-  });
-
-  test('Should change state with changes setter', () {
-    controller.changes = {#counter: 1, #loading: true};
-    expect(controller.state.counter, 1);
-    expect(controller.state.loading, true);
-
-    controller.changes = {#counter: 2, #loading: false};
-    expect(controller.state.counter, 2);
+    controller.set(#count, 1);
+    expect(controller.state.count, 1);
     expect(controller.state.loading, false);
+    expect(observerCalCount, 1);
+    controller.set(#loading, true);
+    expect(controller.state.count, 1);
+    expect(controller.state.loading, true);
+    expect(observerCalCount, 2);
   });
+  test('should change state via merge method', () {
+    var observerCalCount = 0;
+    void onChange(TestState state) {
+      observerCalCount += 1;
+    }
+
+    final observer = onChange.observe();
+    controller.addObserver(observer);
+
+    expect(controller.state.count, 0);
+    expect(controller.state.loading, false);
+    controller.merge({#count: 1});
+    expect(controller.state.count, 1);
+    expect(controller.state.loading, false);
+    expect(observerCalCount, 1);
+    controller.merge({#loading: true});
+    expect(controller.state.count, 1);
+    expect(controller.state.loading, true);
+    expect(observerCalCount, 2);
+    controller.merge({#loading: false, #count: 2});
+    expect(controller.state.count, 2);
+    expect(controller.state.loading, false);
+    expect(observerCalCount, 3);
+  });
+
+  test('should change state via changes setter', () {
+    var observerCalCount = 0;
+    void onChange(TestState state) {
+      observerCalCount += 1;
+    }
+
+    final observer = onChange.observe(topics: {#loading, #count});
+    controller.addObserver(observer);
+
+    expect(controller.state.count, 0);
+    expect(controller.state.loading, false);
+    controller.changes = {#count: 1};
+    expect(controller.state.count, 1);
+    expect(controller.state.loading, false);
+    expect(observerCalCount, 1);
+    controller.changes = {#loading: true};
+    expect(controller.state.count, 1);
+    expect(controller.state.loading, true);
+    expect(observerCalCount, 2);
+    controller.changes = {#loading: false, #count: 2};
+    expect(controller.state.count, 2);
+    expect(controller.state.loading, false);
+    expect(observerCalCount, 3);
+  });
+  test('should dispose', () {});
 }
 
-class _FakeNotifier extends Mock {
-  void notify<S extends Copyable>(S state, Set<Symbol> changes) {}
-}
-
-class _TestState extends StoreState<_TestState> {
-  final int counter;
+class TestState implements StoreState<TestState> {
+  final int count;
   final bool loading;
 
-  _TestState({this.counter, this.loading});
+  const TestState({
+    this.count = 0,
+    this.loading = false,
+  });
 
   @override
-  _TestState copyWith({int counter, bool loading}) => _TestState(
-        counter: counter ?? this.counter,
-        loading: loading ?? this.loading,
-      );
+  TestState copyWith({
+    int count,
+    bool loading,
+  }) {
+    if ((count == null || identical(count, this.count)) &&
+        (loading == null || identical(loading, this.loading))) {
+      return this;
+    }
+
+    return TestState(
+      count: count ?? this.count,
+      loading: loading ?? this.loading,
+    );
+  }
 }

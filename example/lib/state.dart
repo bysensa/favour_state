@@ -7,7 +7,7 @@ class ExampleState implements StoreState<ExampleState> {
   int get controllableCounter => enabled ? counter : 0;
 
   const ExampleState({
-    this.counter = 0,
+    this.counter = 1,
     this.enabled = true,
   });
 
@@ -26,4 +26,15 @@ class ExampleState implements StoreState<ExampleState> {
       enabled: enabled ?? this.enabled,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ExampleState &&
+          runtimeType == other.runtimeType &&
+          counter == other.counter &&
+          enabled == other.enabled;
+
+  @override
+  int get hashCode => counter.hashCode ^ enabled.hashCode;
 }
