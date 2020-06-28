@@ -287,6 +287,22 @@ abstract class SharedStateStore<S extends StoreState<S>> extends Disposable
   @override
   @mustCallSuper
   void dispose() {}
+
+  @override
+  void addObserver(StateChangedObserver<S> observer) {
+    if (observer == null) {
+      return;
+    }
+    _controller.addObserver(observer);
+  }
+
+  @override
+  void removeObserver(StateChangedObserver<S> observer) {
+    if (observer == null) {
+      return;
+    }
+    _controller.removeObserver(observer);
+  }
 }
 
 //
