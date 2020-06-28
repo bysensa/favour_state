@@ -124,61 +124,6 @@ import 'package:flutter/widgets.dart';
 
 typedef Reducer<S, T> = T Function(S);
 
-class SharedListenableBuilder<S extends StoreState<S>, T>
-    extends StatefulWidget {
-  final Reducer<S, T> reducer;
-  final Set<Symbol> topics;
-  final Widget child;
-  final ValueWidgetBuilder<T> builder;
-
-  const SharedListenableBuilder({
-    @required this.reducer,
-    @required this.builder,
-    Key key,
-    this.child,
-    this.topics,
-  })  : assert(reducer != null, 'reducer is null'),
-        assert(builder != null, 'builder is null'),
-        super(key: key);
-
-  @override
-  _SharedListenableBuilderState<S, T> createState() =>
-      _SharedListenableBuilderState<S, T>();
-}
-
-class _SharedListenableBuilderState<S extends StoreState<S>, T>
-    extends State<SharedListenableBuilder<S, T>> {
-  StateChangedObserver<S> _observer;
-
-  @override
-  void initState() {
-    super.initState();
-    _observer = _listener.observe(topics: widget.topics);
-    SharedState().addObserver(_observer);
-  }
-
-  @override
-  void dispose() {
-    SharedState().removeObserver(_observer);
-    super.dispose();
-  }
-
-  void _listener(S state) {
-    setState(() {
-      value = widget.reducer(state);
-    });
-  }
-
-  T value;
-
-  @override
-  Widget build(BuildContext context) => widget.builder(
-        context,
-        value,
-        widget.child,
-      );
-}
-
 class StoreListenableBuilder<S extends StoreState<S>, T>
     extends StatefulWidget {
   final Reducer<S, T> reducer;
@@ -211,8 +156,7 @@ class _StoreListenableBuilderState<S extends StoreState<S>, T>
   @override
   void initState() {
     super.initState();
-    _observer = listener.observe(topics: widget.topics);
-    widget.store.addObserver(_observer);
+    _observer = listener.observe(widget.store, topics: widget.topics);
   }
 
   @override
@@ -226,7 +170,7 @@ class _StoreListenableBuilderState<S extends StoreState<S>, T>
 
   @override
   void dispose() {
-    widget.store.removeObserver(_observer);
+    _observer.dispose();
     super.dispose();
   }
 

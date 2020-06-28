@@ -13,34 +13,28 @@ abstract class Disposable {
 }
 
 extension StateChangedExtension<S extends StoreState<S>> on StateChanged<S> {
-  StateChangedObserver<S> observe({Set<Symbol> topics}) {
+  StateChangedObserver<S> observe(Store<S> store, {Set<Symbol> topics}) {
     final _topics = {#self, ...topics ?? <Symbol>{}};
-    return StateChangedObserver<S>(this, _topics);
+    return StateChangedObserver<S>(store, this, _topics);
   }
 }
 
 class StateChangedObserver<S extends StoreState<S>> extends Disposable {
   final StateChanged<S> _onChange;
   final Set<Symbol> topics;
-
-  Type get stateType => S;
-
-  StateChanged<S> get onChange => didStateChange;
-
+  final Store<S> _store;
   S lastState;
 
-  final bool _shared;
+  Type get stateType => S;
+  StateChanged<S> get onChange => didStateChange;
 
-  StateChangedObserver(this._onChange, this.topics)
-      : _shared = false,
-        assert(_onChange != null, 'onChange is null');
-
-  StateChangedObserver.shared(
+  StateChangedObserver(
+    this._store,
     this._onChange,
     this.topics,
-  )   : _shared = false,
-        assert(_onChange != null, 'onChange is null') {
-    SharedState().addObserver(this);
+  )   : assert(_onChange != null, 'onChange is null'),
+        assert(_store != null, 'store is null') {
+    _store.addObserver(this);
   }
 
   void didStateChange(S state) {
@@ -52,9 +46,7 @@ class StateChangedObserver<S extends StoreState<S>> extends Disposable {
 
   @override
   void dispose() {
-    if (_shared) {
-      SharedState().removeObserver(this);
-    }
+    _store.removeObserver(this);
   }
 }
 
@@ -155,13 +147,19 @@ class StateController<S extends StoreState<S>> extends Disposable {
 abstract class Store<S extends StoreState<S>> extends Disposable
     with StoreMutator<S> {
   @override
-  final StateController<S> _controller;
+  StateController<S> _controller;
 
   S get state => _controller.state;
 
-  Store(S state)
-      : assert(state != null, 'state is null'),
-        _controller = StateController(state);
+  Store() {
+    _controller = StateController<S>(initState());
+    initialize();
+  }
+
+  S initState();
+
+  @mustCallSuper
+  Future<void> initialize() async {}
 
   void addObserver(StateChangedObserver<S> observer) {
     if (observer == null) {
@@ -206,102 +204,6 @@ mixin StoreMutator<S extends StoreState<S>> {
   @protected
   void set(Symbol topic, Object value) {
     _controller.set(topic, value);
-  }
-}
-
-@immutable
-abstract class StateInitializer<S extends StoreState<S>> {
-  Type get stateType => S;
-  StateController<S> get state;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StateInitializer &&
-          runtimeType == other.runtimeType &&
-          identical(S, other.stateType);
-
-  @override
-  int get hashCode => S.hashCode;
-}
-
-class SharedState extends Disposable {
-  static SharedState _instance;
-
-  factory SharedState({Set<StateInitializer> initialStates}) =>
-      _instance ??= SharedState._internal(initialStates);
-
-  SharedState._internal(Set<StateInitializer> initialStates) {
-    final _initialStates = initialStates ?? <StateInitializer>{};
-    for (final initialState in _initialStates) {
-      _states[initialState.stateType] = initialState.state;
-    }
-  }
-
-  Map<Type, StateController> _states;
-
-  StateController<S> state<S extends StoreState<S>>() {
-    if (!_states.containsKey(S)) {
-      throw StateError(
-          'State of type $S not registered. Check SharedState initialization');
-    }
-    return _states[S];
-  }
-
-  void addObserver(StateChangedObserver<StoreState> observer) {
-    if (!_states.containsKey(observer.stateType)) {
-      throw StateError('State of type ${observer.stateType} not registered');
-    }
-    _states[observer.stateType].addObserver(observer);
-  }
-
-  void removeObserver(StateChangedObserver<StoreState> observer) {
-    if (!_states.containsKey(observer.stateType)) {
-      throw StateError('State of type ${observer.stateType} not registered');
-    }
-    _states[observer.stateType].removeObserver(observer);
-  }
-
-  @override
-  void dispose() {
-    for (final state in _states.values) {
-      state.dispose();
-    }
-    _states.clear();
-  }
-}
-
-abstract class SharedStateStore<S extends StoreState<S>> extends Disposable
-    with StoreMutator<S>
-    implements Store<S> {
-  @override
-  StateController<S> _controller;
-
-  @override
-  S get state => _controller.state;
-
-  SharedStateStore() {
-    _controller = SharedState().state<S>();
-  }
-
-  @override
-  @mustCallSuper
-  void dispose() {}
-
-  @override
-  void addObserver(StateChangedObserver<S> observer) {
-    if (observer == null) {
-      return;
-    }
-    _controller.addObserver(observer);
-  }
-
-  @override
-  void removeObserver(StateChangedObserver<S> observer) {
-    if (observer == null) {
-      return;
-    }
-    _controller.removeObserver(observer);
   }
 }
 
