@@ -126,12 +126,15 @@ class StateController<S extends StoreState<S>> extends Disposable {
   S get state => _state;
 
   void _merge(Map<Symbol, Object> changes) {
+    log('$S change begin');
     Timeline.startSync('Mutate ${S}');
     final dynamic newState = Function.apply(
       _state.copyWith,
       null,
       changes,
     );
+    log('Changes: $changes');
+    log('$S change end\n');
     Timeline.finishSync();
     if (newState is S) {
       _state = newState;
@@ -173,6 +176,15 @@ abstract class Store<S extends StoreState<S>> extends Disposable
       return;
     }
     _controller.removeObserver(observer);
+  }
+
+  void setState(void Function() changeClosure, {String debugName}) {
+    final msg = debugName ?? 'change in $S';
+    log('Begin $msg');
+    Timeline.startSync(msg);
+    changeClosure();
+    Timeline.finishSync();
+    log('End $msg');
   }
 
   @override
