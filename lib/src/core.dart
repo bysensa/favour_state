@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
@@ -178,11 +179,14 @@ abstract class Store<S extends StoreState<S>> extends Disposable
     _controller.removeObserver(observer);
   }
 
-  void setState(void Function() changeClosure, {String debugName}) {
+  Future<void> setState(
+    FutureOr<void> Function() changeClosure, {
+    String debugName,
+  }) async {
     final msg = debugName ?? 'change in $S';
     log('Begin $msg');
     Timeline.startSync(msg);
-    changeClosure();
+    await changeClosure();
     Timeline.finishSync();
     log('End $msg\n');
   }
