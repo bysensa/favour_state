@@ -184,7 +184,7 @@ abstract class Store<S extends StoreState<S>> extends Disposable
     Timeline.startSync(msg);
     changeClosure();
     Timeline.finishSync();
-    log('End $msg');
+    log('End $msg\n');
   }
 
   @override
