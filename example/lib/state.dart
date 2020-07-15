@@ -1,5 +1,7 @@
 import 'package:favour_state/favour_state.dart';
+import 'package:flutter/foundation.dart';
 
+@immutable
 class ExampleState implements StoreState<ExampleState> {
   final int counter;
   final bool enabled;

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:developer';
+
 import 'package:favour_state/favour_state.dart';
 import 'package:flutter/widgets.dart';
 
@@ -223,5 +226,56 @@ extension StoreListenable<S extends StoreState<S>> on Store<S> {
       topics: topics,
       child: child,
     );
+  }
+}
+
+abstract class WidgetStore<T extends StatefulWidget, S extends StoreState<S>>
+    extends State<T> with StoreMutator<S> implements Store<S> {
+  // ignore: invalid_use_of_visible_for_testing_member
+  StateController<S> _controller;
+
+  @override
+  S get state => _controller.state;
+
+  @override
+  void addObserver(StateChangedObserver<S> observer) {
+    assert(observer != null, 'observer is null');
+    _controller.addObserver(observer);
+  }
+
+  @override
+  void removeObserver(StateChangedObserver<S> observer) {
+    assert(observer != null, 'observer is null');
+    _controller.removeObserver(observer);
+  }
+
+  @override
+  @mustCallSuper
+  void initState() {
+    super.initState();
+    _controller = StateController<S>(buildState());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Future<void> mutate(
+    FutureOr<void> Function() changeClosure, {
+    String debugName,
+  }) async {
+    final msg = debugName ?? 'change in $S';
+    log('Begin $msg');
+    Timeline.startSync(msg);
+    try {
+      await changeClosure();
+    } catch (err, trace) {
+      log(err, stackTrace: trace);
+    }
+    Timeline.finishSync();
+    log('End $msg\n');
   }
 }

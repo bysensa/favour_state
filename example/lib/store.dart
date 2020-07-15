@@ -14,5 +14,5 @@ class ExampleStore extends Store<ExampleState> {
   }
 
   @override
-  ExampleState initState() => const ExampleState(enabled: false);
+  ExampleState buildState() => const ExampleState(enabled: false);
 }

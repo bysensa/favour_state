@@ -156,14 +156,10 @@ abstract class Store<S extends StoreState<S>> extends Disposable
   S get state => _controller.state;
 
   Store() {
-    _controller = StateController<S>(initState());
-    initialize();
+    _controller = StateController<S>(buildState());
   }
 
-  S initState();
-
-  @mustCallSuper
-  Future<void> initialize() async {}
+  S buildState();
 
   void addObserver(StateChangedObserver<S> observer) {
     if (observer == null) {
@@ -179,14 +175,18 @@ abstract class Store<S extends StoreState<S>> extends Disposable
     _controller.removeObserver(observer);
   }
 
-  Future<void> setState(
+  Future<void> mutate(
     FutureOr<void> Function() changeClosure, {
     String debugName,
   }) async {
     final msg = debugName ?? 'change in $S';
     log('Begin $msg');
     Timeline.startSync(msg);
-    await changeClosure();
+    try {
+      await changeClosure();
+    } catch (err, trace) {
+      log(err, stackTrace: trace);
+    }
     Timeline.finishSync();
     log('End $msg\n');
   }
