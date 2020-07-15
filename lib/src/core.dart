@@ -237,7 +237,7 @@ mixin StoreMutator<S extends StoreState<S>> {
 //
 //  @override
 //  void registerState<S>() {
-//    // TODO: implement registerState
+//    // TODO(devsensa): implement registerState,
 //  }
 //
 //  @override

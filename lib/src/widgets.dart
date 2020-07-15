@@ -230,7 +230,7 @@ extension StoreListenable<S extends StoreState<S>> on Store<S> {
 }
 
 abstract class WidgetStore<T extends StatefulWidget, S extends StoreState<S>>
-    extends State<T> with StoreMutator<S> implements Store<S> {
+    extends State<T> implements Store<S> {
   // ignore: invalid_use_of_visible_for_testing_member
   StateController<S> _controller;
 
@@ -277,5 +277,26 @@ abstract class WidgetStore<T extends StatefulWidget, S extends StoreState<S>>
     }
     Timeline.finishSync();
     log('End $msg\n');
+  }
+
+  @override
+  void operator []=(Symbol topic, Object value) {
+    _controller[topic] = value;
+  }
+
+  @override
+  // ignore: avoid_setters_without_getters
+  set changes(Map<Symbol, Object> changes) {
+    _controller.changes = changes;
+  }
+
+  @override
+  void merge(Map<Symbol, Object> changes) {
+    _controller.merge(changes);
+  }
+
+  @override
+  void set(Symbol topic, Object value) {
+    _controller.set(topic, value);
   }
 }
