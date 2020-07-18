@@ -5,132 +5,121 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 //
-typedef StateChanged<S extends StoreState<S>> = void Function(S);
+typedef StateObserver<S extends StoreState<S>> = void Function(S);
 
-abstract class Observer {}
-
-abstract class Disposable {
-  void dispose();
-}
-
-extension StateChangedExtension<S extends StoreState<S>> on StateChanged<S> {
-  StateChangedObserver<S> observe(Store<S> store, {Set<Symbol> topics}) {
-    final _topics = {#self, ...topics ?? <Symbol>{}};
-    return StateChangedObserver<S>(store, this, _topics);
-  }
-}
-
-class StateChangedObserver<S extends StoreState<S>> extends Disposable {
-  final StateChanged<S> _onChange;
+@immutable
+class StateChangeObserver<S extends StoreState<S>> {
+  final StateObserver<S> _onChange;
   final Set<Symbol> topics;
-  final Store<S> _store;
-  S lastState;
 
   Type get stateType => S;
-  StateChanged<S> get onChange => didStateChange;
 
-  StateChangedObserver(
-    this._store,
+  const StateChangeObserver(
     this._onChange,
     this.topics,
   )   : assert(_onChange != null, 'onChange is null'),
-        assert(_store != null, 'store is null') {
-    _store.addObserver(this);
-  }
+        assert(topics != null, 'topics is null');
 
-  void didStateChange(S state) {
-    if (state != lastState) {
-      lastState = state;
-      _onChange(state);
+  void call(StateChange<S> change) {
+    final canCall = change.topics.any(topics.contains);
+    if (canCall) {
+      _onChange(change.state);
     }
-  }
-
-  @override
-  void dispose() {
-    _store.removeObserver(this);
   }
 }
 
+// STORE API
 abstract class StoreState<S> {
   S copyWith();
 }
 
-@visibleForTesting
-class StateController<S extends StoreState<S>> extends Disposable {
-  S _state;
-  final S initialState;
+class StateChange<S extends StoreState<S>> {
+  final Set<Symbol> topics;
+  final S state;
 
-  Type get stateType => S;
-
-  final Map<Symbol, HashedObserverList<StateChanged<S>>> observers = {};
-
-  StateController(this.initialState)
-      : assert(initialState != null, 'initialState is null'),
-        _state = initialState;
+  const StateChange({
+    @required this.topics,
+    @required this.state,
+  })  : assert(topics != null, 'topics is null'),
+        assert(state != null, 'state is null');
 
   @override
+  String toString() {
+    return 'StateChange{topics: $topics, state: $state}';
+  }
+}
+
+abstract class Operation<S extends StoreMixin<StoreState>> {
+  String get topic;
+  Symbol get operationBeginTopic => Symbol('begin_$topic');
+  Symbol get operationEndTopic => Symbol('end_$topic');
+  FutureOr<void> call(S store);
+}
+
+mixin StoreMixin<S extends StoreState<S>> {
+  S get initialState;
+  S _state;
+  S get state {
+    assert(initialState != null, 'initialState is null');
+    return _state ??= initialState;
+  }
+
+  Type get stateType => S;
+//  final Map<Symbol, HashedObserverList<StateObserver<S>>> observers = {};
+  final StreamController<StateChange<S>> _observers =
+      StreamController.broadcast();
+
   @mustCallSuper
   void dispose() {
-    observers.clear();
+    _observers.close();
   }
 
-  void addObserver(StateChangedObserver<S> observer) {
-    for (final topic in observer.topics) {
-      if (!observers.containsKey(topic)) {
-        observers[topic] = HashedObserverList();
-      }
-      if (!observers[topic].contains(observer.onChange)) {
-        observers[topic].add(observer.onChange);
-      }
+  StreamSubscription<StateChange<S>> subscribe(
+    StateObserver<S> observer, {
+    Set<Symbol> topics,
+  }) {
+    final _topics = <Symbol>{};
+    if (topics != null) {
+      _topics.addAll(topics);
+    } else {
+      _topics.add(#self);
     }
-    observer.onChange(_state);
-  }
-
-  void removeObserver(StateChangedObserver<S> observer) {
-    for (final topic in observer.topics) {
-      if (observers.containsKey(topic)) {
-        observers[topic].remove(observer.onChange);
-      }
-    }
+    observer(state);
+    return _observers.stream.listen(StateChangeObserver<S>(observer, _topics));
   }
 
   @visibleForTesting
   void notifyObservers(S newState, Iterable<Symbol> topics) {
-    void notify(StateChanged<S> observer) {
-      observer(newState);
-    }
-
-    for (final topic in topics) {
-      if (observers.containsKey(topic)) {
-        observers[topic].forEach(notify);
-      }
-    }
+    final change = StateChange(state: newState, topics: topics);
+    log('$change');
+    _observers.add(change);
   }
 
+  @protected
   void operator []=(Symbol topic, Object value) {
     _merge({topic: value});
   }
 
-  // ignore: avoid_setters_without_getters
+  @protected
   set changes(Map<Symbol, Object> changes) {
     _merge(changes);
   }
 
+  @protected
   void merge(Map<Symbol, Object> changes) {
     _merge(changes);
   }
 
+  @protected
   void set(Symbol topic, Object value) {
     _merge({topic: value});
   }
-
-  S get state => _state;
 
   void _merge(Map<Symbol, Object> changes) {
     log('$S change begin');
     Timeline.startSync('Mutate ${S}');
     final dynamic newState = Function.apply(
-      _state.copyWith,
+      state.copyWith,
       null,
       changes,
     );
@@ -138,6 +127,9 @@ class StateController<S extends StoreState<S>> extends Disposable {
     log('$S change end\n');
     Timeline.finishSync();
     if (newState is S) {
+      if (newState == _state) {
+        return;
+      }
       _state = newState;
       Timeline.startSync('Notify $S changed');
       notifyObservers(newState, {#self, ...changes.keys});
@@ -146,41 +138,13 @@ class StateController<S extends StoreState<S>> extends Disposable {
     }
     throw StateError('state method "copyWith" return instance of unknown type');
   }
-}
 
-abstract class Store<S extends StoreState<S>> extends Disposable
-    with StoreMutator<S> {
-  @override
-  StateController<S> _controller;
-
-  S get state => _controller.state;
-
-  Store() {
-    _controller = StateController<S>(buildState());
-  }
-
-  S buildState();
-
-  void addObserver(StateChangedObserver<S> observer) {
-    if (observer == null) {
-      return;
-    }
-    _controller.addObserver(observer);
-  }
-
-  void removeObserver(StateChangedObserver<S> observer) {
-    if (observer == null) {
-      return;
-    }
-    _controller.removeObserver(observer);
-  }
-
+  @protected
   Future<void> mutate(
     FutureOr<void> Function() changeClosure, {
     String debugName,
   }) async {
     final msg = debugName ?? 'change in $S';
-    log('Begin $msg');
     Timeline.startSync(msg);
     try {
       await changeClosure();
@@ -188,40 +152,16 @@ abstract class Store<S extends StoreState<S>> extends Disposable
       log(err, stackTrace: trace);
     }
     Timeline.finishSync();
-    log('End $msg\n');
   }
 
-  @override
-  @mustCallSuper
-  void dispose() {
-    _controller.dispose();
-  }
-}
-
-mixin StoreMutator<S extends StoreState<S>> {
-  StateController<S> get _controller;
-
-  @protected
-  void operator []=(Symbol topic, Object value) {
-    _controller[topic] = value;
-  }
-
-  @protected
-  // ignore: avoid_setters_without_getters
-  set changes(Map<Symbol, Object> changes) {
-    _controller.changes = changes;
-  }
-
-  @protected
-  void merge(Map<Symbol, Object> changes) {
-    _controller.merge(changes);
-  }
-
-  @protected
-  void set(Symbol topic, Object value) {
-    _controller.set(topic, value);
+  FutureOr<void> call(Operation operation) async {
+    notifyObservers(state, {operation.operationBeginTopic});
+    await operation(this);
+    notifyObservers(state, {operation.operationEndTopic});
   }
 }
+
+abstract class Store<S extends StoreState<S>> with StoreMixin<S> {}
 
 //
 //class StateRuntimeBinding extends BindingBase

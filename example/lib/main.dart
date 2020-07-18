@@ -16,20 +16,26 @@ class ExampleApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         home: Scaffold(
           body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                store.listenable((c, v, _) => Text('${v.counter}')),
-                RaisedButton(
-                  onPressed: () => store.multiply(2),
-                  child: const Text('Doubly'),
-                ),
-                RaisedButton(
-                  onPressed: store.toggle,
-                  child: const Text('Toggle'),
-                ),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: 700,
+                    child: ListView.separated(
+                      itemBuilder: (context, idx) =>
+                          store.listenable((c, v, _) => Text('${v.counter}')),
+                      separatorBuilder: (context, idx) => const Divider(),
+                      itemCount: 20,
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => store.multiply(2),
+            child: const Icon(Icons.add),
           ),
         ),
       );

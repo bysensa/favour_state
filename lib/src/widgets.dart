@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:favour_state/favour_state.dart';
 import 'package:flutter/widgets.dart';
@@ -148,27 +147,27 @@ class StoreListenableBuilder<S extends StoreState<S>> extends StatefulWidget {
 
 class _StoreListenableBuilderState<S extends StoreState<S>>
     extends State<StoreListenableBuilder<S>> {
-  StateChangedObserver<S> _observer;
+  StreamSubscription _subscription;
   S value;
 
   @override
   void initState() {
     super.initState();
-    _observer = listener.observe(widget.store, topics: widget.topics);
+    _subscription = widget.store.subscribe(listener, topics: widget.topics);
   }
 
   @override
   void didUpdateWidget(StoreListenableBuilder oldWidget) {
     if (oldWidget.store != widget.store) {
-      oldWidget.store.removeObserver(_observer);
-      widget.store.addObserver(_observer);
+      _subscription.cancel();
+      _subscription = widget.store.subscribe(listener, topics: widget.topics);
     }
     super.didUpdateWidget(oldWidget);
   }
 
   @override
   void dispose() {
-    _observer.dispose();
+    _subscription.cancel();
     super.dispose();
   }
 
@@ -226,77 +225,5 @@ extension StoreListenable<S extends StoreState<S>> on Store<S> {
       topics: topics,
       child: child,
     );
-  }
-}
-
-abstract class WidgetStore<T extends StatefulWidget, S extends StoreState<S>>
-    extends State<T> implements Store<S> {
-  // ignore: invalid_use_of_visible_for_testing_member
-  StateController<S> _controller;
-
-  @override
-  S get state => _controller.state;
-
-  @override
-  void addObserver(StateChangedObserver<S> observer) {
-    assert(observer != null, 'observer is null');
-    _controller.addObserver(observer);
-  }
-
-  @override
-  void removeObserver(StateChangedObserver<S> observer) {
-    assert(observer != null, 'observer is null');
-    _controller.removeObserver(observer);
-  }
-
-  @override
-  @mustCallSuper
-  void initState() {
-    super.initState();
-    _controller = StateController<S>(buildState());
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Future<void> mutate(
-    FutureOr<void> Function() changeClosure, {
-    String debugName,
-  }) async {
-    final msg = debugName ?? 'change in $S';
-    log('Begin $msg');
-    Timeline.startSync(msg);
-    try {
-      await changeClosure();
-    } catch (err, trace) {
-      log(err, stackTrace: trace);
-    }
-    Timeline.finishSync();
-    log('End $msg\n');
-  }
-
-  @override
-  void operator []=(Symbol topic, Object value) {
-    _controller[topic] = value;
-  }
-
-  @override
-  // ignore: avoid_setters_without_getters
-  set changes(Map<Symbol, Object> changes) {
-    _controller.changes = changes;
-  }
-
-  @override
-  void merge(Map<Symbol, Object> changes) {
-    _controller.merge(changes);
-  }
-
-  @override
-  void set(Symbol topic, Object value) {
-    _controller.set(topic, value);
   }
 }
