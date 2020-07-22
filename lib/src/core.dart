@@ -10,18 +10,17 @@ typedef StateObserver<S extends StoreState<S>> = void Function(S);
 @immutable
 class StateChangeObserver<S extends StoreState<S>> {
   final StateObserver<S> _onChange;
-  final Set<Symbol> topics;
+  final Set<Symbol> _topics;
 
   Type get stateType => S;
 
   const StateChangeObserver(
     this._onChange,
-    this.topics,
-  )   : assert(_onChange != null, 'onChange is null'),
-        assert(topics != null, 'topics is null');
+    this._topics,
+  ) : assert(_onChange != null, 'onChange is null');
 
   void call(StateChange<S> change) {
-    final canCall = change.topics.any(topics.contains);
+    final canCall = _topics.any((topic) => change.topics.contains(topic));
     if (canCall) {
       _onChange(change.state);
     }
@@ -44,9 +43,7 @@ class StateChange<S extends StoreState<S>> {
         assert(state != null, 'state is null');
 
   @override
-  String toString() {
-    return 'StateChange{topics: $topics, state: $state}';
-  }
+  String toString() => 'StateChange{topics: $topics, state: $state}';
 }
 
 abstract class Operation<S extends StoreMixin<StoreState>> {
@@ -65,13 +62,11 @@ mixin StoreMixin<S extends StoreState<S>> {
   }
 
   Type get stateType => S;
-//  final Map<Symbol, HashedObserverList<StateObserver<S>>> observers = {};
-  final StreamController<StateChange<S>> _observers =
-      StreamController.broadcast();
+  final StreamController<StateChange<S>> _events = StreamController.broadcast();
 
   @mustCallSuper
   void dispose() {
-    _observers.close();
+    _events.close();
   }
 
   StreamSubscription<StateChange<S>> subscribe(
@@ -80,19 +75,19 @@ mixin StoreMixin<S extends StoreState<S>> {
   }) {
     final _topics = <Symbol>{};
     if (topics != null) {
-      _topics.addAll(topics);
+      _topics.addAll({#self, ...topics});
     } else {
       _topics.add(#self);
     }
     observer(state);
-    return _observers.stream.listen(StateChangeObserver<S>(observer, _topics));
+    return _events.stream.listen(StateChangeObserver<S>(observer, _topics));
   }
 
   @visibleForTesting
   void notifyObservers(S newState, Iterable<Symbol> topics) {
     final change = StateChange(state: newState, topics: topics);
     log('$change');
-    _observers.add(change);
+    _events.add(change);
   }
 
   @protected
