@@ -1,4 +1,4 @@
-# favour\_state
+# favour\_state package
 
 State management solution for flutter inspired by cerebraljs and property\_change\_notifier
 
