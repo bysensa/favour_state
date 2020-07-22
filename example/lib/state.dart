@@ -6,8 +6,6 @@ class ExampleState implements StoreState<ExampleState> {
   final int counter;
   final bool enabled;
 
-  int get controllableCounter => enabled ? counter : 0;
-
   const ExampleState({
     this.counter = 1,
     this.enabled = true,
@@ -39,4 +37,7 @@ class ExampleState implements StoreState<ExampleState> {
 
   @override
   int get hashCode => counter.hashCode ^ enabled.hashCode;
+
+  @override
+  String toString() => 'ExampleState{counter: $counter, enabled: $enabled}';
 }

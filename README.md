@@ -7,18 +7,63 @@ State management solution for flutter inspired by cerebraljs and property\_chang
 #Example
 
 ```dart
-// state.dart
+// store.dart
+
+import 'dart:async';
 
 import 'package:favour_state/favour_state.dart';
 
+import 'state.dart';
+
+class ExampleStore extends Store<ExampleState> {
+  // you can initialize your state
+
+  Future<void> multiply(int multiplier) async {
+    this(MultiplyOperation(2));
+  }
+
+  void toggle() {
+    this[#enabled] = !state.enabled;
+  }
+
+  @override
+  ExampleState get initialState => const ExampleState(enabled: false);
+}
+
+class MultiplyOperation extends Operation<ExampleStore> {
+  final int multiplier;
+
+  MultiplyOperation(this.multiplier);
+
+  @override
+  FutureOr<void> call(ExampleStore store) async {
+    store[#counter] = 0;
+    while (store.state.counter < 1000) {
+      store[#counter] = store.state.counter + multiplier;
+      await Future.delayed(const Duration(milliseconds: 1), () {});
+    }
+  }
+
+  @override
+  String get topic => 'multiply';
+}
+
+```
+
+
+```dart
+// state.dart
+
+import 'package:favour_state/favour_state.dart';
+import 'package:flutter/foundation.dart';
+
+@immutable
 class ExampleState implements StoreState<ExampleState> {
   final int counter;
   final bool enabled;
 
-  int get controllableCounter => enabled ? counter : 0;
-
   const ExampleState({
-    this.counter = 0,
+    this.counter = 1,
     this.enabled = true,
   });
 
@@ -37,105 +82,32 @@ class ExampleState implements StoreState<ExampleState> {
       enabled: enabled ?? this.enabled,
     );
   }
-}
-```
 
-
-```dart
-// store.dart
-
-import 'package:favour_state/favour_state.dart';
-
-import 'state.dart';
-
-class ExampleStore extends BaseStore<ExampleState> {
-  // Any reaction is optional
-  ValueReaction<ExampleState, bool> enabled;
-  ValueReaction<ExampleState, int> controllableCounter;
-  ValueReaction<ExampleState, ExampleState> self;
-
-  EffectReaction<ExampleState> onCounterChange;
-
-  // if you not declare reaction you can leave the method empty
   @override
-  void initReactions() {
-    // under the hood value reaction implement ValueListenable
-    enabled = valueReaction((s) => s.enabled, topics: {#enabled});
-    controllableCounter = valueReaction(
-      (s) => s.controllableCounter,
-      topics: {#enabled, #counter},
-    );
-    self = valueReaction((s) => s);
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ExampleState &&
+          runtimeType == other.runtimeType &&
+          counter == other.counter &&
+          enabled == other.enabled;
 
-    // in closure of effect reaction you can use anything from class scope
-    onCounterChange = effectReaction(
-      // ignore: avoid_print
-      (s) => print('counter changed'),
-      topics: {#counter},
-    );
-  }
-
-  // you can initialize your state
   @override
-  ExampleState initState() => const ExampleState(counter: 1);
+  int get hashCode => counter.hashCode ^ enabled.hashCode;
 
-  Future<void> multiply(int multiplier) async {
-    await run(MultiplyCounter(multiplier));
-  }
-
-  Future<void> toggle() async {
-    await run(action<ExampleStore>((store, mutator, [services]) {
-      // #name - should be equal to state copyWith named params
-      // For example if copyWith is 'void copyWith({int counter, bool enabled})'
-      // you can use #counter and #enabled to mutate state
-      mutator[#enabled] = !store.state.enabled;
-    }));
-  }
+  @override
+  String toString() => 'ExampleState{counter: $counter, enabled: $enabled}';
 }
 
-// Action can be class based
-class MultiplyCounter extends StoreAction<ExampleStore> {
-  // constructor can declare positional and optional params
-  MultiplyCounter(int multiplier)
-      : super(
-          // closure for action should declare this params
-          (store, mutator, [services]) {
-            // You can use any of this api to mutate state
-            // mutator[#counter] = 1
-            // mutator.changes = {#counter: 1, #enabled: false};
-            // mutator.merge({#counter: 1, #enabled: false});
-            // mutator.set(#counter, 1);
-            mutator[#counter] = store.state.counter * multiplier;
-          },
-        );
-}
 ```
 
 
 ```dart
 // main.dart
-
 import 'package:favour_state/favour_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
 
 import 'store.dart';
-
-void bootstrapStores(AppState appState) {
-  // Store initialized after registration
-  // when method bootstrapServices called
-  // Runtime setup into state and methods
-  // initState and initReactions called
-
-  // Store can be registered using this api
-  // appState.registerStore(AnotherStore());
-  // appState.registerDerivedStore(
-  //   (store) => SomeStore(dependency: stores<AnotherStore>())
-  // )
-  // when you register derived store you can get already registered stores
-  appState.registerStore(ExampleStore());
-}
 
 void main() {
   runApp(ExampleApp());
@@ -143,40 +115,56 @@ void main() {
 
 // ignore: use_key_in_widget_constructors
 class ExampleApp extends StatelessWidget {
+  final store = ExampleStore();
+
   @override
   Widget build(BuildContext context) => MaterialApp(
-        home: AppStateProvider(
-          bootstrap: bootstrapStores,
-          serviceProvider: GetIt.I,
-          child: Builder(
-            builder: (context) {
-              final store = AppStateScope.store<ExampleStore>(context);
-              // ignore: avoid_unnecessary_containers
-              return Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ValueListenableBuilder(
-                          valueListenable: store.controllableCounter,
-                          builder: (context, value, child) => Text('$value')),
-                      RaisedButton(
-                        onPressed: () => store.multiply(2),
-                        child: const Text('Doubly'),
+        home: Scaffold(
+          body: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: 700,
+                    child: store.listenable(
+                      (context, state, child) => Visibility(
+                        visible: state.enabled,
+                        child: ListView.separated(
+                          itemBuilder: (context, idx) => store.listenable(
+                            (context, state, _) => Text('${state.counter}'),
+                          ),
+                          separatorBuilder: (context, idx) => const Divider(),
+                          itemCount: 20,
+                        ),
                       ),
-                      RaisedButton(
-                        onPressed: store.toggle,
-                        child: const Text('Toggle'),
-                      ),
-                    ],
+                      topics: {#enabled},
+                    ),
                   ),
+                ],
+              ),
+            ),
+          ),
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                RaisedButton(
+                  onPressed: () => store.multiply(2),
+                  child: const Text('Increment'),
                 ),
-              );
-            },
+                RaisedButton(
+                  onPressed: store.toggle,
+                  child: const Text('Toggle'),
+                ),
+              ],
+            ),
           ),
         ),
       );
 }
+
 ```
 
 ## Introduction

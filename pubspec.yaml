@@ -1,6 +1,6 @@
 name: favour_state
 description: State management for flutter
-version: 0.0.2
+version: 0.0.2+1
 homepage: https://github.com/devsensa/favour_state
 
 environment:

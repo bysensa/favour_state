@@ -26,11 +26,11 @@ class MultiplyOperation extends Operation<ExampleStore> {
 
   @override
   FutureOr<void> call(ExampleStore store) async {
+    store[#counter] = 0;
     while (store.state.counter < 1000) {
       store[#counter] = store.state.counter + multiplier;
       await Future.delayed(const Duration(milliseconds: 1), () {});
     }
-    store[#counter] = 0;
   }
 
   @override

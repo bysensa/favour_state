@@ -22,20 +22,39 @@ class ExampleApp extends StatelessWidget {
                 children: [
                   SizedBox(
                     height: 700,
-                    child: ListView.separated(
-                      itemBuilder: (context, idx) =>
-                          store.listenable((c, v, _) => Text('${v.counter}')),
-                      separatorBuilder: (context, idx) => const Divider(),
-                      itemCount: 20,
+                    child: store.listenable(
+                      (context, state, child) => Visibility(
+                        visible: state.enabled,
+                        child: ListView.separated(
+                          itemBuilder: (context, idx) => store.listenable(
+                            (context, state, _) => Text('${state.counter}'),
+                          ),
+                          separatorBuilder: (context, idx) => const Divider(),
+                          itemCount: 20,
+                        ),
+                      ),
+                      topics: {#enabled},
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => store.multiply(2),
-            child: const Icon(Icons.add),
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                RaisedButton(
+                  onPressed: () => store.multiply(2),
+                  child: const Text('Increment'),
+                ),
+                RaisedButton(
+                  onPressed: store.toggle,
+                  child: const Text('Toggle'),
+                ),
+              ],
+            ),
           ),
         ),
       );
