@@ -32,11 +32,11 @@ class GoodSelector extends Selector<int, String, Object> {
       stream.map(mapState);
 }
 
-class HelperUseCase extends UseCase<int, Object, void> {
+class HelperUseCase extends UseCase<int, void> {
   HelperUseCase(Store<int> store) : super(store);
 
   @override
-  Future<void> execute(Object param) async {
+  Future<void> execute(void param) async {
     await Future.delayed(1.seconds);
     commit((state) => 1);
     await Future.delayed(1.seconds);

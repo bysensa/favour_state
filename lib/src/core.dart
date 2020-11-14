@@ -124,11 +124,11 @@ abstract class Selector<S, P, R> {
   Stream<R> mapStream(Stream<S> stream, [P param]);
 }
 
-class Provider<S,P,R> {
+abstract class Provider<S, P, R> {
   Store<S> _store;
 
   @mustCallSuper
-  UseCase(Store<S> store) : assert(store != null, 'store is null') {
+  Provider(Store<S> store) : assert(store != null, 'store is null') {
     _store = store;
   }
 
@@ -144,7 +144,7 @@ class Provider<S,P,R> {
   }
 
   Result<R> call([P param]) => Result(() => provide(param));
-  
+
   R provide(P param);
 }
 

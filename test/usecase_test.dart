@@ -7,7 +7,7 @@ class IntStore extends Store<int> {
   int init() => 0;
 }
 
-class BadUseCase extends UseCase<int, void, void> {
+class BadUseCase extends UseCase<int, void> {
   BadUseCase(Store<int> store) : super(store);
 
   @override
@@ -16,7 +16,7 @@ class BadUseCase extends UseCase<int, void, void> {
   }
 }
 
-class GoodUseCase extends UseCase<int, Object, void> {
+class GoodUseCase extends UseCase<int, Object> {
   GoodUseCase(Store<int> store) : super(store);
 
   @override
@@ -27,7 +27,7 @@ class GoodUseCase extends UseCase<int, Object, void> {
   }
 }
 
-class GoodUseCaseWithParam extends UseCase<int, int, void> {
+class GoodUseCaseWithParam extends UseCase<int, int> {
   GoodUseCaseWithParam(Store<int> store) : super(store);
 
   @override
@@ -37,13 +37,6 @@ class GoodUseCaseWithParam extends UseCase<int, int, void> {
     commit((state) => 1);
     commit((state) => state + param);
   }
-}
-
-class GoodUseCaseWithResult extends UseCase<int, Object, int> {
-  GoodUseCaseWithResult(Store<int> store) : super(store);
-
-  @override
-  Future<int> execute(Object param) async => 1;
 }
 
 void main() {
@@ -71,19 +64,6 @@ void main() {
     final expectation = expectLater(store.stream, emitsInOrder([0, 1, 10]));
     await useCase(9);
     await expectation;
-  });
-
-  test('Should correctly call use case with param', () async {
-    final store = IntStore();
-    final useCase = GoodUseCaseWithResult(store);
-    final result = await useCase();
-    expect(result, isA<Result>());
-    expect(result.isError, false);
-    expect(result.isValue, true);
-    expect(() => result.error, throwsA(isA<AssertionError>()));
-    expect(() => result.stackTrace, throwsA(isA<AssertionError>()));
-    expect(result.value, isA<int>());
-    expect(result.value, 1);
   });
 
   test('Should correctly handle exception with result', () async {
