@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:async/async.dart';
@@ -26,12 +28,19 @@ abstract class Store<S> extends DisposableInterface {
     _state.refresh();
   }
 
+  @protected
+  void log(String message) {
+    developer.log(message, name: '$runtimeType');
+  }
+
   @visibleForTesting
   void commit(CommitFn<S> commit) {
     assert(commit != null, 'commit closure is null');
+    log('Begin commit');
     final newState = commit(_state.value);
     assert(newState != null, 'newState is null');
     _state.value = newState;
+    log('Finish commit');
   }
 
   @mustCallSuper
@@ -56,6 +65,11 @@ abstract class UseCase<S, P, R> {
   S get state => _store._state.value;
 
   @protected
+  void log(String message) {
+    developer.log(message, name: '$runtimeType');
+  }
+
+  @protected
   void commit(CommitFn<S> commit) {
     _store.commit(commit);
   }
@@ -65,7 +79,14 @@ abstract class UseCase<S, P, R> {
     _store.refresh();
   }
 
-  Future<Result<R>> call([P param]) => Result.capture(execute(param));
+  Future<Result<R>> call([P param]) {
+    developer.Timeline.startSync('$runtimeType:call');
+    log('Begin execution');
+    final result = Result.capture(execute(param));
+    log('Finish execution');
+    developer.Timeline.finishSync();
+    return result;
+  }
 
   Future<R> execute(P param);
 }
@@ -87,9 +108,16 @@ abstract class Selector<S, P, R> {
   @protected
   Stream<S> get stream => _store._state.stream;
 
+  @protected
+  void log(String message) {
+    developer.log(message, name: '$runtimeType');
+  }
+
   Stream<R> call([P param]) async* {
+    developer.Timeline.startSync('$runtimeType:call');
     yield mapState(state, param);
     yield* mapStream(stream, param);
+    developer.Timeline.finishSync();
   }
 
   R mapState(S state, [P param]);
