@@ -50,7 +50,7 @@ abstract class Store<S> extends DisposableInterface {
   }
 }
 
-abstract class UseCase<S, P, R> {
+abstract class UseCase<S, P> {
   Store<S> _store;
 
   @mustCallSuper
@@ -79,7 +79,7 @@ abstract class UseCase<S, P, R> {
     _store.refresh();
   }
 
-  Future<Result<R>> call([P param]) {
+  Future<Result<void>> call([P param]) {
     developer.Timeline.startSync('$runtimeType:call');
     log('Begin execution');
     final result = Result.capture(execute(param));
@@ -88,7 +88,7 @@ abstract class UseCase<S, P, R> {
     return result;
   }
 
-  Future<R> execute(P param);
+  Future<void> execute(P param);
 }
 
 abstract class Selector<S, P, R> {
@@ -122,6 +122,30 @@ abstract class Selector<S, P, R> {
 
   R mapState(S state, [P param]);
   Stream<R> mapStream(Stream<S> stream, [P param]);
+}
+
+class Provider<S,P,R> {
+  Store<S> _store;
+
+  @mustCallSuper
+  UseCase(Store<S> store) : assert(store != null, 'store is null') {
+    _store = store;
+  }
+
+  @visibleForTesting
+  Store<S> get store => _store;
+
+  @protected
+  S get state => _store._state.value;
+
+  @protected
+  void log(String message) {
+    developer.log(message, name: '$runtimeType');
+  }
+
+  Result<R> call([P param]) => Result(() => provide(param));
+  
+  R provide(P param);
 }
 
 extension ResultExtension<T> on Result<T> {
