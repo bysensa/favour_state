@@ -2,13 +2,15 @@ import 'package:favour_state/favour_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:async/async.dart';
 
-class IntStore extends Store<int> {
+enum TestActivity { test1, test2 }
+
+class IntStore extends Store<int, TestActivity> {
   @override
   int init() => 0;
 }
 
-class BadUseCase extends UseCase<int, void> {
-  BadUseCase(Store<int> store) : super(store);
+class BadUseCase extends UseCase<int, TestActivity, void> {
+  BadUseCase(Store<int, TestActivity> store) : super(store);
 
   @override
   Future<void> execute(Object param) async {
@@ -16,8 +18,8 @@ class BadUseCase extends UseCase<int, void> {
   }
 }
 
-class GoodUseCase extends UseCase<int, Object> {
-  GoodUseCase(Store<int> store) : super(store);
+class GoodUseCase extends UseCase<int, TestActivity, Object> {
+  GoodUseCase(Store<int, TestActivity> store) : super(store);
 
   @override
   Future<void> execute(Object param) async {
@@ -27,8 +29,8 @@ class GoodUseCase extends UseCase<int, Object> {
   }
 }
 
-class GoodUseCaseWithParam extends UseCase<int, int> {
-  GoodUseCaseWithParam(Store<int> store) : super(store);
+class GoodUseCaseWithParam extends UseCase<int, TestActivity, int> {
+  GoodUseCaseWithParam(Store<int, TestActivity> store) : super(store);
 
   @override
   Future<void> execute(int param) async {

@@ -6,7 +6,14 @@ import 'package:async/async.dart';
 
 typedef CommitFn<S> = S Function(S);
 
-abstract class Store<S,A> extends DisposableInterface {
+mixin Logger {
+  @protected
+  void log(String message) {
+    developer.log(message, name: '$runtimeType');
+  }
+}
+
+abstract class Store<S, A> extends DisposableInterface with Logger {
   Rx<S> _state;
   GetStream<A> _activity;
   S init();
@@ -15,7 +22,7 @@ abstract class Store<S,A> extends DisposableInterface {
   Store() {
     final initializedState = init();
     assert(initializedState != null, 'initializedState is null');
-    _state = StreamController(initializedState);
+    _state = Rx(initializedState);
     _activity = GetStream();
   }
 
@@ -24,18 +31,13 @@ abstract class Store<S,A> extends DisposableInterface {
 
   @visibleForTesting
   Stream<S> get stream => _state.stream;
-  
+
   @visibleForTesting
   Stream<A> get activityStream => _activity.stream;
 
   @visibleForTesting
   void refresh() {
     _state.refresh();
-  }
-
-  @protected
-  void log(String message) {
-    developer.log(message, name: '$runtimeType');
   }
 
   @visibleForTesting
@@ -47,7 +49,7 @@ abstract class Store<S,A> extends DisposableInterface {
     _state.value = newState;
     log('Finish commit');
   }
-  
+
   @visibleForTesting
   void send(A activity) {
     assert(activity != null, 'activity is null');
@@ -62,24 +64,19 @@ abstract class Store<S,A> extends DisposableInterface {
   }
 }
 
-abstract class UseCase<S, P> {
-  Store<S> _store;
+abstract class UseCase<S, A, P> with Logger {
+  Store<S, A> _store;
 
   @mustCallSuper
-  UseCase(Store<S> store) : assert(store != null, 'store is null') {
+  UseCase(Store<S, A> store) : assert(store != null, 'store is null') {
     _store = store;
   }
 
   @visibleForTesting
-  Store<S> get store => _store;
+  Store<S, A> get store => _store;
 
   @protected
   S get state => _store._state.value;
-
-  @protected
-  void log(String message) {
-    developer.log(message, name: '$runtimeType');
-  }
 
   @protected
   void commit(CommitFn<S> commit) {
@@ -103,27 +100,22 @@ abstract class UseCase<S, P> {
   Future<void> execute(P param);
 }
 
-abstract class Selector<S, P, R> {
-  Store<S> _store;
+abstract class Selector<S, P, R> with Logger {
+  Store<S, Object> _store;
 
   @mustCallSuper
-  Selector(Store<S> store) : assert(store != null, 'store is null') {
+  Selector(Store<S, Object> store) : assert(store != null, 'store is null') {
     _store = store;
   }
 
   @visibleForTesting
-  Store<S> get store => _store;
+  Store<S, Object> get store => _store;
 
   @protected
   S get state => _store._state.value;
 
   @protected
   Stream<S> get stream => _store._state.stream;
-
-  @protected
-  void log(String message) {
-    developer.log(message, name: '$runtimeType');
-  }
 
   Stream<R> call([P param]) async* {
     developer.Timeline.startSync('$runtimeType:call');
@@ -136,28 +128,44 @@ abstract class Selector<S, P, R> {
   Stream<R> mapStream(Stream<S> stream, [P param]);
 }
 
-abstract class Provider<S, P, R> {
-  Store<S> _store;
+abstract class Provider<S, P, R> with Logger {
+  Store<S, Object> _store;
 
   @mustCallSuper
-  Provider(Store<S> store) : assert(store != null, 'store is null') {
+  Provider(Store<S, Object> store) : assert(store != null, 'store is null') {
     _store = store;
   }
 
   @visibleForTesting
-  Store<S> get store => _store;
+  Store<S, Object> get store => _store;
 
   @protected
   S get state => _store._state.value;
 
-  @protected
-  void log(String message) {
-    developer.log(message, name: '$runtimeType');
-  }
-
   Result<R> call([P param]) => Result(() => provide(param));
 
   R provide(P param);
+}
+
+abstract class ActivitySelector<S, A, P, R> with Logger {
+  Store<S, A> _store;
+
+  @mustCallSuper
+  ActivitySelector(Store<S, A> store) : assert(store != null, 'store is null') {
+    _store = store;
+  }
+
+  @visibleForTesting
+  Store<S, Object> get store => _store;
+
+  @protected
+  S get state => _store._state.value;
+
+  Stream<R> call([P param]) async* {
+    yield* select(_store.activityStream, param);
+  }
+
+  Stream<R> select(Stream<A> stream, P param);
 }
 
 extension ResultExtension<T> on Result<T> {

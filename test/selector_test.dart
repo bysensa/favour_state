@@ -2,13 +2,13 @@ import 'package:favour_state/favour_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 
-class IntStore extends Store<int> {
+class IntStore extends Store<int, dynamic> {
   @override
   int init() => 0;
 }
 
 class BadSelector extends Selector<int, Object, Object> {
-  BadSelector(Store<int> store) : super(store);
+  BadSelector(Store<int, dynamic> store) : super(store);
 
   @override
   Object mapState(int state, [Object param]) {
@@ -22,7 +22,7 @@ class BadSelector extends Selector<int, Object, Object> {
 }
 
 class GoodSelector extends Selector<int, String, Object> {
-  GoodSelector(Store<int> store) : super(store);
+  GoodSelector(Store<int, dynamic> store) : super(store);
 
   @override
   Object mapState(int state, [Object param]) => '$state';
@@ -32,8 +32,8 @@ class GoodSelector extends Selector<int, String, Object> {
       stream.map(mapState);
 }
 
-class HelperUseCase extends UseCase<int, void> {
-  HelperUseCase(Store<int> store) : super(store);
+class HelperUseCase extends UseCase<int, dynamic, void> {
+  HelperUseCase(Store<int, dynamic> store) : super(store);
 
   @override
   Future<void> execute(void param) async {

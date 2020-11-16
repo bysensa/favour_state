@@ -1,7 +1,9 @@
 import 'package:favour_state/favour_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class IntStore extends Store<int> {
+enum TestActivity { test1, test2 }
+
+class IntStore extends Store<int, TestActivity> {
   final int Function() initializer;
 
   IntStore(this.initializer);

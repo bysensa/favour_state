@@ -2,13 +2,13 @@ import 'package:favour_state/favour_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:async/async.dart';
 
-class IntStore extends Store<int> {
+class IntStore extends Store<int, dynamic> {
   @override
   int init() => 1;
 }
 
 class BadProvider extends Provider<int, int, String> {
-  BadProvider(Store<int> store) : super(store);
+  BadProvider(Store<int, dynamic> store) : super(store);
 
   @override
   String provide(int param) {
@@ -17,14 +17,14 @@ class BadProvider extends Provider<int, int, String> {
 }
 
 class GoodProvider extends Provider<int, void, String> {
-  GoodProvider(Store<int> store) : super(store);
+  GoodProvider(Store<int, dynamic> store) : super(store);
 
   @override
   String provide(void param) => '$state';
 }
 
 class GoodProviderWithParam extends Provider<int, int, String> {
-  GoodProviderWithParam(Store<int> store) : super(store);
+  GoodProviderWithParam(Store<int, dynamic> store) : super(store);
 
   @override
   String provide(int param) => '$state$param';
