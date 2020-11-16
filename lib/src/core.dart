@@ -6,15 +6,17 @@ import 'package:async/async.dart';
 
 typedef CommitFn<S> = S Function(S);
 
-abstract class Store<S> extends DisposableInterface {
+abstract class Store<S,A> extends DisposableInterface {
   Rx<S> _state;
+  GetStream<A> _activity;
   S init();
 
   @mustCallSuper
   Store() {
     final initializedState = init();
     assert(initializedState != null, 'initializedState is null');
-    _state = Rx(initializedState);
+    _state = StreamController(initializedState);
+    _activity = GetStream();
   }
 
   @visibleForTesting
@@ -22,6 +24,9 @@ abstract class Store<S> extends DisposableInterface {
 
   @visibleForTesting
   Stream<S> get stream => _state.stream;
+  
+  @visibleForTesting
+  Stream<A> get activityStream => _activity.stream;
 
   @visibleForTesting
   void refresh() {
@@ -42,11 +47,18 @@ abstract class Store<S> extends DisposableInterface {
     _state.value = newState;
     log('Finish commit');
   }
+  
+  @visibleForTesting
+  void send(A activity) {
+    assert(activity != null, 'activity is null');
+    _activity.add(activity);
+  }
 
   @mustCallSuper
   @override
   void onClose() {
     _state.close();
+    _activity.close();
   }
 }
 
